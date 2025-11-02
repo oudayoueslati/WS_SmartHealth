@@ -22,6 +22,7 @@ import Register from "views/examples/Register.jsx";
 import Login from "views/examples/Login.jsx";
 import Tables from "views/examples/Tables.jsx";
 import Icons from "views/examples/Icons.jsx";
+import HealthPrograms from "views/HealthPrograms.jsx";
 
 var routes = [
   {
@@ -29,6 +30,13 @@ var routes = [
     name: "Dashboard",
     icon: "ni ni-tv-2 text-primary",
     component: <Index />,
+    layout: "/admin",
+  },
+  {
+    path: "/health-programs",
+    name: "Health Programs",
+    icon: "ni ni-favourite-28 text-red",
+    component: <HealthPrograms />,
     layout: "/admin",
   },
   {
