@@ -4,9 +4,9 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const router = express.Router();
 
-const FUSEKI_URL = process.env.FUSEKI_URL || "http://localhost:3030/usersDB";
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-const JWT_EXPIRE = process.env.JWT_EXPIRE || "7d";
+const FUSEKI_URL = process.env.FUSEKI_URL ;
+const JWT_SECRET = process.env.JWT_SECRET ;
+const JWT_EXPIRE = process.env.JWT_EXPIRE ;
 
 const generateToken = (username, email) => {
   return jwt.sign({ username, email }, JWT_SECRET, { expiresIn: JWT_EXPIRE });
