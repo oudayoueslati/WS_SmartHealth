@@ -4,6 +4,11 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const authRoutes = require("./routes/auth");
 const healthProgramRoutes = require("./routes/healthPrograms");
+const paymentRoutes = require("./routes/payments");
+const userRoutes = require("./routes/users");
+const serviceRoutes = require("./routes/services");
+const recommendationRoutes = require("./routes/recommendations");
+const assistantRoutes = require("./routes/assistant");
 
 const app = express();
 
@@ -14,6 +19,11 @@ app.use(bodyParser.json());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/health-programs", healthProgramRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/services", serviceRoutes);
+app.use("/api/recommendations", recommendationRoutes);
+app.use("/api/assistant", assistantRoutes);
 
 // Health check
 app.get("/", (req, res) => {
