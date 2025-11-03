@@ -468,4 +468,128 @@ router.get("/relations/services", async (req, res) => {
   }
 });
 
+// ============================================
+// POST - Créer un nouvel utilisateur
+// ============================================
+router.post("/relations/users/create", async (req, res) => {
+  const { username, email, age } = req.body;
+
+  if (!username || !email) {
+    return res.status(400).json({
+      success: false,
+      message: "Username and email are required"
+    });
+  }
+
+  const userId = `user_${Date.now()}`;
+
+  try {
+    const userTTL = `
+      @prefix ex: <http://example.org/> .
+      ex:${userId} a ex:Utilisateur ;
+          ex:username "${username}" ;
+          ex:email "${email}" ;
+          ex:age ${age || 0} .
+    `;
+
+    await axios.post(`${FUSEKI_URL}/data`, userTTL, {
+      headers: { "Content-Type": "text/turtle" },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "User created successfully",
+      user: { id: userId, username, email, age }
+    });
+  } catch (err) {
+    console.error("Create user error:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+// ============================================
+// POST - Créer un nouvel objectif
+// ============================================
+router.post("/relations/objectifs/create", async (req, res) => {
+  const { name, target } = req.body;
+
+  if (!name) {
+    return res.status(400).json({
+      success: false,
+      message: "Name is required"
+    });
+  }
+
+  const objectifId = `objectif_${Date.now()}`;
+
+  try {
+    const objectifTTL = `
+      @prefix ex: <http://example.org/> .
+      ex:${objectifId} a ex:Objectif ;
+          ex:objectifName "${name}" ;
+          ex:objectifTarget "${target || ''}" .
+    `;
+
+    await axios.post(`${FUSEKI_URL}/data`, objectifTTL, {
+      headers: { "Content-Type": "text/turtle" },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Objectif created successfully",
+      objectif: { id: objectifId, name, target }
+    });
+  } catch (err) {
+    console.error("Create objectif error:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+// ============================================
+// POST - Créer un nouveau service médical
+// ============================================
+router.post("/relations/services/create", async (req, res) => {
+  const { name, type } = req.body;
+
+  if (!name) {
+    return res.status(400).json({
+      success: false,
+      message: "Name is required"
+    });
+  }
+
+  const serviceId = `service_${Date.now()}`;
+
+  try {
+    const serviceTTL = `
+      @prefix ex: <http://example.org/> .
+      ex:${serviceId} a ex:Service_medical ;
+          ex:serviceName "${name}" ;
+          ex:serviceType "${type || ''}" .
+    `;
+
+    await axios.post(`${FUSEKI_URL}/data`, serviceTTL, {
+      headers: { "Content-Type": "text/turtle" },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Service created successfully",
+      service: { id: serviceId, name, type }
+    });
+  } catch (err) {
+    console.error("Create service error:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
 module.exports = router;
