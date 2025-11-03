@@ -17,11 +17,11 @@
 */
 import Index from "views/Index.jsx";
 import Profile from "views/examples/Profile.jsx";
-import Maps from "views/examples/Maps.jsx";
 import Register from "views/examples/Register.jsx";
 import Login from "views/examples/Login.jsx";
 import Tables from "views/examples/Tables.jsx";
-import Icons from "views/examples/Icons.jsx";
+import MesureForm from "views/examples/Mesure.jsx";
+import ScoreSanteForm from "views/examples/ScoreSante.jsx";
 
 var routes = [
   {
@@ -32,17 +32,17 @@ var routes = [
     layout: "/admin",
   },
   {
-    path: "/icons",
-    name: "Icons",
+    path: "/MesureForm",
+    name: "Mesure",
     icon: "ni ni-planet text-blue",
-    component: <Icons />,
+    component: <MesureForm />,
     layout: "/admin",
   },
   {
-    path: "/maps",
-    name: "Maps",
+    path: "/ScoreSanteForm",
+    name: "ScoreSante",
     icon: "ni ni-pin-3 text-orange",
-    component: <Maps />,
+    component: <ScoreSanteForm />,
     layout: "/admin",
   },
   {
