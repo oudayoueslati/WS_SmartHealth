@@ -30,10 +30,16 @@ const HealthPrograms = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   
+  // Relations data
+  const [users, setUsers] = useState([]);
+  const [objectifs, setObjectifs] = useState([]);
+  const [services, setServices] = useState([]);
+  
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentProgram, setCurrentProgram] = useState(null);
+  const [showRelations, setShowRelations] = useState(false);
   
   // Form states
   const [formData, setFormData] = useState({
@@ -42,13 +48,18 @@ const HealthPrograms = () => {
     description: "",
     duration: "",
     goals: "",
+    assignedToUserId: "",
+    scoreId: "",
+    serviceId: "",
+    etatSanteId: "",
+    objectifId: ""
   });
 
-  // Filter state
   const [filterType, setFilterType] = useState("All");
 
   useEffect(() => {
     fetchPrograms();
+    fetchRelationsData();
   }, []);
 
   const fetchPrograms = async () => {
@@ -66,6 +77,22 @@ const HealthPrograms = () => {
     }
   };
 
+  const fetchRelationsData = async () => {
+    try {
+      const [usersRes, objectifsRes, servicesRes] = await Promise.all([
+        axios.get(`${API_URL}/relations/users`),
+        axios.get(`${API_URL}/relations/objectifs`),
+        axios.get(`${API_URL}/relations/services`)
+      ]);
+
+      if (usersRes.data.success) setUsers(usersRes.data.users);
+      if (objectifsRes.data.success) setObjectifs(objectifsRes.data.objectifs);
+      if (servicesRes.data.success) setServices(servicesRes.data.services);
+    } catch (err) {
+      console.error("Failed to fetch relations data:", err);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -78,9 +105,15 @@ const HealthPrograms = () => {
       description: "",
       duration: "",
       goals: "",
+      assignedToUserId: "",
+      scoreId: "",
+      serviceId: "",
+      etatSanteId: "",
+      objectifId: ""
     });
     setEditMode(false);
     setCurrentProgram(null);
+    setShowRelations(false);
   };
 
   const openCreateModal = () => {
@@ -95,6 +128,11 @@ const HealthPrograms = () => {
       description: program.description,
       duration: program.duration,
       goals: program.goals,
+      assignedToUserId: program.relations?.assignedTo || "",
+      scoreId: program.relations?.score || "",
+      serviceId: program.relations?.service || "",
+      etatSanteId: program.relations?.etatSante || "",
+      objectifId: program.relations?.objectif || ""
     });
     setCurrentProgram(program);
     setEditMode(true);
@@ -108,11 +146,9 @@ const HealthPrograms = () => {
 
     try {
       if (editMode) {
-        // Update
         await axios.put(`${API_URL}/${currentProgram.id}`, formData);
         setSuccess("Program updated successfully!");
       } else {
-        // Create
         const user = JSON.parse(localStorage.getItem("user") || "{}");
         await axios.post(`${API_URL}/create`, {
           ...formData,
@@ -244,7 +280,7 @@ const HealthPrograms = () => {
                         <th scope="col">Type</th>
                         <th scope="col">Description</th>
                         <th scope="col">Duration</th>
-                        <th scope="col">Goals</th>
+                        <th scope="col">Relations</th>
                         <th scope="col">Actions</th>
                       </tr>
                     </thead>
@@ -268,7 +304,25 @@ const HealthPrograms = () => {
                             </td>
                             <td>{program.description || "-"}</td>
                             <td>{program.duration || "-"}</td>
-                            <td>{program.goals || "-"}</td>
+                            <td>
+                              <small>
+                                {program.relations?.assignedTo && (
+                                  <Badge color="info" className="mr-1">
+                                    👤 {program.relations.assignedTo}
+                                  </Badge>
+                                )}
+                                {program.relations?.objectif && (
+                                  <Badge color="warning" className="mr-1">
+                                    🎯 {program.relations.objectif}
+                                  </Badge>
+                                )}
+                                {program.relations?.service && (
+                                  <Badge color="success">
+                                    🏥 {program.relations.service}
+                                  </Badge>
+                                )}
+                              </small>
+                            </td>
                             <td>
                               <Button
                                 color="info"
@@ -346,30 +400,137 @@ const HealthPrograms = () => {
                 />
               </FormGroup>
 
-              <FormGroup>
-                <Label for="duration">Duration</Label>
-                <Input
-                  type="text"
-                  name="duration"
-                  id="duration"
-                  placeholder="e.g., 4 weeks, 30 days"
-                  value={formData.duration}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
+              <Row>
+                <Col md="6">
+                  <FormGroup>
+                    <Label for="duration">Duration</Label>
+                    <Input
+                      type="text"
+                      name="duration"
+                      id="duration"
+                      placeholder="e.g., 4 weeks"
+                      value={formData.duration}
+                      onChange={handleInputChange}
+                    />
+                  </FormGroup>
+                </Col>
+                <Col md="6">
+                  <FormGroup>
+                    <Label for="goals">Goals</Label>
+                    <Input
+                      type="text"
+                      name="goals"
+                      id="goals"
+                      placeholder="Enter goals"
+                      value={formData.goals}
+                      onChange={handleInputChange}
+                    />
+                  </FormGroup>
+                </Col>
+              </Row>
 
-              <FormGroup>
-                <Label for="goals">Goals</Label>
-                <Input
-                  type="textarea"
-                  name="goals"
-                  id="goals"
-                  placeholder="Enter program goals"
-                  value={formData.goals}
-                  onChange={handleInputChange}
-                  rows="2"
-                />
-              </FormGroup>
+              <hr />
+              <h5 className="mb-3">
+                <Button
+                  color="link"
+                  size="sm"
+                  onClick={() => setShowRelations(!showRelations)}
+                >
+                  {showRelations ? "▼" : "▶"} Relations (Optional)
+                </Button>
+              </h5>
+
+              {showRelations && (
+                <>
+                  <Row>
+                    <Col md="6">
+                      <FormGroup>
+                        <Label for="assignedToUserId">Assigned To User</Label>
+                        <Input
+                          type="select"
+                          name="assignedToUserId"
+                          id="assignedToUserId"
+                          value={formData.assignedToUserId}
+                          onChange={handleInputChange}
+                        >
+                          <option value="">-- Select User --</option>
+                          {users.map(user => (
+                            <option key={user.id} value={user.id}>
+                              {user.username} ({user.email})
+                            </option>
+                          ))}
+                        </Input>
+                      </FormGroup>
+                    </Col>
+                    <Col md="6">
+                      <FormGroup>
+                        <Label for="objectifId">Objectif</Label>
+                        <Input
+                          type="select"
+                          name="objectifId"
+                          id="objectifId"
+                          value={formData.objectifId}
+                          onChange={handleInputChange}
+                        >
+                          <option value="">-- Select Objectif --</option>
+                          {objectifs.map(obj => (
+                            <option key={obj.id} value={obj.id}>
+                              {obj.name}
+                            </option>
+                          ))}
+                        </Input>
+                      </FormGroup>
+                    </Col>
+                  </Row>
+
+                  <Row>
+                    <Col md="6">
+                      <FormGroup>
+                        <Label for="serviceId">Medical Service</Label>
+                        <Input
+                          type="select"
+                          name="serviceId"
+                          id="serviceId"
+                          value={formData.serviceId}
+                          onChange={handleInputChange}
+                        >
+                          <option value="">-- Select Service --</option>
+                          {services.map(service => (
+                            <option key={service.id} value={service.id}>
+                              {service.name} ({service.type})
+                            </option>
+                          ))}
+                        </Input>
+                      </FormGroup>
+                    </Col>
+                    <Col md="6">
+                      <FormGroup>
+                        <Label for="etatSanteId">État Santé ID</Label>
+                        <Input
+                          type="text"
+                          name="etatSanteId"
+                          id="etatSanteId"
+                          placeholder="e.g., etat_1"
+                          value={formData.etatSanteId}
+                          onChange={handleInputChange}
+                        />
+                      </FormGroup>
+                    </Col>
+                  </Row>
+
+                  <FormGroup>
+                    <Label for="scoreId">Score Santé ID</Label>
+                    <Input
+                      type="text"
+                      name="scoreId"
+                      id="scoreId"
+                      placeholder="e.g., score_1"
+                      value={formData.scoreId}
+                      onChange={handleInputChange}
+                    />
+                  </FormGroup>
+                </>
+              )}
             </ModalBody>
             <ModalFooter>
               <Button color="secondary" onClick={() => setModalOpen(false)}>

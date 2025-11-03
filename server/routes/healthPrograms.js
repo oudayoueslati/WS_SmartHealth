@@ -5,10 +5,22 @@ const router = express.Router();
 const FUSEKI_URL = process.env.FUSEKI_URL || "http://localhost:3030/usersDB";
 
 // ============================================
-// CREATE - Créer un nouveau programme
+// CREATE - Créer un nouveau programme avec relations
 // ============================================
 router.post("/create", async (req, res) => {
-  const { type, name, description, duration, goals, userId } = req.body;
+  const { 
+    type, 
+    name, 
+    description, 
+    duration, 
+    goals, 
+    userId,
+    assignedToUserId,
+    scoreId,
+    serviceId,
+    etatSanteId,
+    objectifId
+  } = req.body;
 
   if (!type || !name || !userId) {
     return res.status(400).json({
@@ -17,59 +29,43 @@ router.post("/create", async (req, res) => {
     });
   }
 
-  // Générer un ID unique pour le programme
   const programId = `program_${Date.now()}`;
 
   try {
     let programTTL = "";
+    const programClass = type === "Activity" ? "ProgrammeActivite" 
+                       : type === "Sleep" ? "ProgrammeSommeil" 
+                       : "ProgrammeNutrition";
 
-    // Créer le programme selon le type
-    switch (type) {
-      case "Activity":
-        programTTL = `
-          @prefix ex: <http://example.org/> .
-          ex:${programId} a ex:ProgrammeActivite ;
-              ex:name "${name}" ;
-              ex:description "${description || ''}" ;
-              ex:duration "${duration || ''}" ;
-              ex:goals "${goals || ''}" ;
-              ex:createdBy ex:${userId} ;
-              ex:createdAt "${new Date().toISOString()}" .
-        `;
-        break;
+    // Construire le TTL avec les relations
+    programTTL = `
+      @prefix ex: <http://example.org/> .
+      ex:${programId} a ex:${programClass} ;
+          ex:name "${name}" ;
+          ex:description "${description || ''}" ;
+          ex:duration "${duration || ''}" ;
+          ex:goals "${goals || ''}" ;
+          ex:createdBy ex:${userId} ;
+          ex:createdAt "${new Date().toISOString()}" `;
 
-      case "Sleep":
-        programTTL = `
-          @prefix ex: <http://example.org/> .
-          ex:${programId} a ex:ProgrammeSommeil ;
-              ex:name "${name}" ;
-              ex:description "${description || ''}" ;
-              ex:duration "${duration || ''}" ;
-              ex:goals "${goals || ''}" ;
-              ex:createdBy ex:${userId} ;
-              ex:createdAt "${new Date().toISOString()}" .
-        `;
-        break;
-
-      case "Nutrition":
-        programTTL = `
-          @prefix ex: <http://example.org/> .
-          ex:${programId} a ex:ProgrammeNutrition ;
-              ex:name "${name}" ;
-              ex:description "${description || ''}" ;
-              ex:duration "${duration || ''}" ;
-              ex:goals "${goals || ''}" ;
-              ex:createdBy ex:${userId} ;
-              ex:createdAt "${new Date().toISOString()}" .
-        `;
-        break;
-
-      default:
-        return res.status(400).json({
-          success: false,
-          message: "Invalid program type. Use: Activity, Sleep, or Nutrition"
-        });
+    // Ajouter les relations optionnelles
+    if (assignedToUserId) {
+      programTTL += `;\n          ex:assignedTo ex:${assignedToUserId}`;
     }
+    if (scoreId) {
+      programTTL += `;\n          ex:hasScore ex:${scoreId}`;
+    }
+    if (serviceId) {
+      programTTL += `;\n          ex:providedBy ex:${serviceId}`;
+    }
+    if (etatSanteId) {
+      programTTL += `;\n          ex:targetsEtat ex:${etatSanteId}`;
+    }
+    if (objectifId) {
+      programTTL += `;\n          ex:hasObjectif ex:${objectifId}`;
+    }
+
+    programTTL += " .";
 
     await axios.post(`${FUSEKI_URL}/data`, programTTL, {
       headers: { "Content-Type": "text/turtle" },
@@ -78,7 +74,22 @@ router.post("/create", async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Program created successfully",
-      program: { id: programId, type, name, description, duration, goals }
+      program: { 
+        id: programId, 
+        type, 
+        name, 
+        description, 
+        duration, 
+        goals,
+        relations: {
+          createdBy: userId,
+          assignedTo: assignedToUserId,
+          score: scoreId,
+          service: serviceId,
+          etatSante: etatSanteId,
+          objectif: objectifId
+        }
+      }
     });
   } catch (err) {
     console.error("Create program error:", err);
@@ -90,12 +101,13 @@ router.post("/create", async (req, res) => {
 });
 
 // ============================================
-// READ - Récupérer tous les programmes
+// READ - Récupérer tous les programmes AVEC relations
 // ============================================
 router.get("/all", async (req, res) => {
   const query = `
     PREFIX ex: <http://example.org/>
-    SELECT ?program ?type ?name ?description ?duration ?goals ?createdAt
+    SELECT ?program ?type ?name ?description ?duration ?goals ?createdAt 
+           ?createdBy ?assignedTo ?score ?service ?etatSante ?objectif
     WHERE {
       ?program a ?type ;
                ex:name ?name .
@@ -103,6 +115,12 @@ router.get("/all", async (req, res) => {
       OPTIONAL { ?program ex:duration ?duration . }
       OPTIONAL { ?program ex:goals ?goals . }
       OPTIONAL { ?program ex:createdAt ?createdAt . }
+      OPTIONAL { ?program ex:createdBy ?createdBy . }
+      OPTIONAL { ?program ex:assignedTo ?assignedTo . }
+      OPTIONAL { ?program ex:hasScore ?score . }
+      OPTIONAL { ?program ex:providedBy ?service . }
+      OPTIONAL { ?program ex:targetsEtat ?etatSante . }
+      OPTIONAL { ?program ex:hasObjectif ?objectif . }
       FILTER(?type = ex:ProgrammeActivite || ?type = ex:ProgrammeSommeil || ?type = ex:ProgrammeNutrition)
     }
     ORDER BY DESC(?createdAt)
@@ -121,7 +139,15 @@ router.get("/all", async (req, res) => {
       description: binding.description?.value || '',
       duration: binding.duration?.value || '',
       goals: binding.goals?.value || '',
-      createdAt: binding.createdAt?.value || ''
+      createdAt: binding.createdAt?.value || '',
+      relations: {
+        createdBy: binding.createdBy?.value.split('/').pop() || null,
+        assignedTo: binding.assignedTo?.value.split('/').pop() || null,
+        score: binding.score?.value.split('/').pop() || null,
+        service: binding.service?.value.split('/').pop() || null,
+        etatSante: binding.etatSante?.value.split('/').pop() || null,
+        objectif: binding.objectif?.value.split('/').pop() || null
+      }
     }));
 
     res.json({
@@ -138,14 +164,15 @@ router.get("/all", async (req, res) => {
 });
 
 // ============================================
-// READ - Récupérer un programme par ID
+// READ - Récupérer un programme par ID AVEC relations
 // ============================================
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
 
   const query = `
     PREFIX ex: <http://example.org/>
-    SELECT ?type ?name ?description ?duration ?goals ?createdAt
+    SELECT ?type ?name ?description ?duration ?goals ?createdAt 
+           ?createdBy ?assignedTo ?score ?service ?etatSante ?objectif
     WHERE {
       ex:${id} a ?type ;
                ex:name ?name .
@@ -153,6 +180,12 @@ router.get("/:id", async (req, res) => {
       OPTIONAL { ex:${id} ex:duration ?duration . }
       OPTIONAL { ex:${id} ex:goals ?goals . }
       OPTIONAL { ex:${id} ex:createdAt ?createdAt . }
+      OPTIONAL { ex:${id} ex:createdBy ?createdBy . }
+      OPTIONAL { ex:${id} ex:assignedTo ?assignedTo . }
+      OPTIONAL { ex:${id} ex:hasScore ?score . }
+      OPTIONAL { ex:${id} ex:providedBy ?service . }
+      OPTIONAL { ex:${id} ex:targetsEtat ?etatSante . }
+      OPTIONAL { ex:${id} ex:hasObjectif ?objectif . }
     }
   `;
 
@@ -177,7 +210,15 @@ router.get("/:id", async (req, res) => {
       description: binding.description?.value || '',
       duration: binding.duration?.value || '',
       goals: binding.goals?.value || '',
-      createdAt: binding.createdAt?.value || ''
+      createdAt: binding.createdAt?.value || '',
+      relations: {
+        createdBy: binding.createdBy?.value.split('/').pop() || null,
+        assignedTo: binding.assignedTo?.value.split('/').pop() || null,
+        score: binding.score?.value.split('/').pop() || null,
+        service: binding.service?.value.split('/').pop() || null,
+        etatSante: binding.etatSante?.value.split('/').pop() || null,
+        objectif: binding.objectif?.value.split('/').pop() || null
+      }
     };
 
     res.json({
@@ -194,14 +235,24 @@ router.get("/:id", async (req, res) => {
 });
 
 // ============================================
-// UPDATE - Mettre à jour un programme
+// UPDATE - Mettre à jour un programme AVEC relations
 // ============================================
 router.put("/:id", async (req, res) => {
   const { id } = req.params;
-  const { name, description, duration, goals } = req.body;
+  const { 
+    name, 
+    description, 
+    duration, 
+    goals,
+    assignedToUserId,
+    scoreId,
+    serviceId,
+    etatSanteId,
+    objectifId
+  } = req.body;
 
   try {
-    // Supprimer les anciennes propriétés
+    // Supprimer les anciennes propriétés ET relations
     const deleteQuery = `
       PREFIX ex: <http://example.org/>
       DELETE {
@@ -209,12 +260,22 @@ router.put("/:id", async (req, res) => {
         ex:${id} ex:description ?oldDescription .
         ex:${id} ex:duration ?oldDuration .
         ex:${id} ex:goals ?oldGoals .
+        ex:${id} ex:assignedTo ?oldAssigned .
+        ex:${id} ex:hasScore ?oldScore .
+        ex:${id} ex:providedBy ?oldService .
+        ex:${id} ex:targetsEtat ?oldEtat .
+        ex:${id} ex:hasObjectif ?oldObjectif .
       }
       WHERE {
         OPTIONAL { ex:${id} ex:name ?oldName . }
         OPTIONAL { ex:${id} ex:description ?oldDescription . }
         OPTIONAL { ex:${id} ex:duration ?oldDuration . }
         OPTIONAL { ex:${id} ex:goals ?oldGoals . }
+        OPTIONAL { ex:${id} ex:assignedTo ?oldAssigned . }
+        OPTIONAL { ex:${id} ex:hasScore ?oldScore . }
+        OPTIONAL { ex:${id} ex:providedBy ?oldService . }
+        OPTIONAL { ex:${id} ex:targetsEtat ?oldEtat . }
+        OPTIONAL { ex:${id} ex:hasObjectif ?oldObjectif . }
       }
     `;
 
@@ -222,14 +283,32 @@ router.put("/:id", async (req, res) => {
       headers: { "Content-Type": "application/sparql-update" },
     });
 
-    // Ajouter les nouvelles propriétés
-    const insertQuery = `
+    // Construire la requête INSERT avec relations
+    let insertQuery = `
       PREFIX ex: <http://example.org/>
       INSERT DATA {
         ex:${id} ex:name "${name}" ;
                  ex:description "${description || ''}" ;
                  ex:duration "${duration || ''}" ;
-                 ex:goals "${goals || ''}" .
+                 ex:goals "${goals || ''}"`;
+
+    if (assignedToUserId) {
+      insertQuery += ` ;\n                 ex:assignedTo ex:${assignedToUserId}`;
+    }
+    if (scoreId) {
+      insertQuery += ` ;\n                 ex:hasScore ex:${scoreId}`;
+    }
+    if (serviceId) {
+      insertQuery += ` ;\n                 ex:providedBy ex:${serviceId}`;
+    }
+    if (etatSanteId) {
+      insertQuery += ` ;\n                 ex:targetsEtat ex:${etatSanteId}`;
+    }
+    if (objectifId) {
+      insertQuery += ` ;\n                 ex:hasObjectif ex:${objectifId}`;
+    }
+
+    insertQuery += ` .
       }
     `;
 
@@ -240,7 +319,20 @@ router.put("/:id", async (req, res) => {
     res.json({
       success: true,
       message: "Program updated successfully",
-      program: { id, name, description, duration, goals }
+      program: { 
+        id, 
+        name, 
+        description, 
+        duration, 
+        goals,
+        relations: {
+          assignedTo: assignedToUserId,
+          score: scoreId,
+          service: serviceId,
+          etatSante: etatSanteId,
+          objectif: objectifId
+        }
+      }
     });
   } catch (err) {
     console.error("Update program error:", err);
@@ -252,7 +344,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // ============================================
-// DELETE - Supprimer un programme
+// DELETE - Supprimer un programme (inchangé)
 // ============================================
 router.delete("/:id", async (req, res) => {
   const { id } = req.params;
@@ -283,41 +375,19 @@ router.delete("/:id", async (req, res) => {
 });
 
 // ============================================
-// READ - Récupérer programmes par type
+// Nouvelles routes pour gérer les relations
 // ============================================
-router.get("/type/:type", async (req, res) => {
-  const { type } = req.params;
-  
-  let programType;
-  switch (type) {
-    case "Activity":
-      programType = "ProgrammeActivite";
-      break;
-    case "Sleep":
-      programType = "ProgrammeSommeil";
-      break;
-    case "Nutrition":
-      programType = "ProgrammeNutrition";
-      break;
-    default:
-      return res.status(400).json({
-        success: false,
-        message: "Invalid type. Use: Activity, Sleep, or Nutrition"
-      });
-  }
 
+// GET - Lister tous les utilisateurs
+router.get("/relations/users", async (req, res) => {
   const query = `
     PREFIX ex: <http://example.org/>
-    SELECT ?program ?name ?description ?duration ?goals ?createdAt
+    SELECT ?user ?username ?email
     WHERE {
-      ?program a ex:${programType} ;
-               ex:name ?name .
-      OPTIONAL { ?program ex:description ?description . }
-      OPTIONAL { ?program ex:duration ?duration . }
-      OPTIONAL { ?program ex:goals ?goals . }
-      OPTIONAL { ?program ex:createdAt ?createdAt . }
+      ?user a ex:Utilisateur .
+      OPTIONAL { ?user ex:username ?username . }
+      OPTIONAL { ?user ex:email ?email . }
     }
-    ORDER BY DESC(?createdAt)
   `;
 
   try {
@@ -326,26 +396,75 @@ router.get("/type/:type", async (req, res) => {
       headers: { Accept: "application/sparql-results+json" },
     });
 
-    const programs = response.data.results.bindings.map(binding => ({
-      id: binding.program.value.split('/').pop(),
-      type: programType,
-      name: binding.name.value,
-      description: binding.description?.value || '',
-      duration: binding.duration?.value || '',
-      goals: binding.goals?.value || '',
-      createdAt: binding.createdAt?.value || ''
+    const users = response.data.results.bindings.map(b => ({
+      id: b.user.value.split('/').pop(),
+      username: b.username?.value || '',
+      email: b.email?.value || ''
     }));
 
-    res.json({
-      success: true,
-      programs
-    });
+    res.json({ success: true, users });
   } catch (err) {
-    console.error("Get programs by type error:", err);
-    res.status(500).json({
-      success: false,
-      error: err.message
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET - Lister tous les objectifs
+router.get("/relations/objectifs", async (req, res) => {
+  const query = `
+    PREFIX ex: <http://example.org/>
+    SELECT ?objectif ?name ?target
+    WHERE {
+      ?objectif a ex:Objectif .
+      OPTIONAL { ?objectif ex:objectifName ?name . }
+      OPTIONAL { ?objectif ex:objectifTarget ?target . }
+    }
+  `;
+
+  try {
+    const response = await axios.get(`${FUSEKI_URL}/query`, {
+      params: { query },
+      headers: { Accept: "application/sparql-results+json" },
     });
+
+    const objectifs = response.data.results.bindings.map(b => ({
+      id: b.objectif.value.split('/').pop(),
+      name: b.name?.value || '',
+      target: b.target?.value || ''
+    }));
+
+    res.json({ success: true, objectifs });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET - Lister tous les services médicaux
+router.get("/relations/services", async (req, res) => {
+  const query = `
+    PREFIX ex: <http://example.org/>
+    SELECT ?service ?name ?type
+    WHERE {
+      ?service a ex:Service_medical .
+      OPTIONAL { ?service ex:serviceName ?name . }
+      OPTIONAL { ?service ex:serviceType ?type . }
+    }
+  `;
+
+  try {
+    const response = await axios.get(`${FUSEKI_URL}/query`, {
+      params: { query },
+      headers: { Accept: "application/sparql-results+json" },
+    });
+
+    const services = response.data.results.bindings.map(b => ({
+      id: b.service.value.split('/').pop(),
+      name: b.name?.value || '',
+      type: b.type?.value || ''
+    }));
+
+    res.json({ success: true, services });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
