@@ -1,20 +1,3 @@
-/*!
-
-=========================================================
-* Argon Dashboard React - v1.2.4
-=========================================================
-
-* Product Page: https://www.creative-tim.com/product/argon-dashboard-react
-* Copyright 2024 Creative Tim (https://www.creative-tim.com)
-* Licensed under MIT (https://github.com/creativetimofficial/argon-dashboard-react/blob/master/LICENSE.md)
-
-* Coded by Creative Tim
-
-=========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-*/
 import Index from "views/Index.jsx";
 import Profile from "views/examples/Profile.jsx";
 import Maps from "views/examples/Maps.jsx";
@@ -23,6 +6,8 @@ import Login from "views/examples/Login.jsx";
 import Tables from "views/examples/Tables.jsx";
 import Icons from "views/examples/Icons.jsx";
 import HealthPrograms from "views/HealthPrograms.jsx";
+import EvenementForm from "views/examples/Evenement.jsx"; 
+import ArticleForm from "views/examples/Article.jsx"; 
 
 var routes = [
   {
@@ -32,6 +17,7 @@ var routes = [
     component: <Index />,
     layout: "/admin",
   },
+
   {
     path: "/health-programs",
     name: "Health Programs",
@@ -68,6 +54,13 @@ var routes = [
     layout: "/admin",
   },
   {
+    path: "/register",
+    name: "Register",
+    icon: "ni ni-circle-08 text-pink",
+    component: <Register />,
+    layout: "/auth",
+  },
+  {
     path: "/login",
     name: "Login",
     icon: "ni ni-key-25 text-info",
@@ -75,11 +68,19 @@ var routes = [
     layout: "/auth",
   },
   {
-    path: "/register",
-    name: "Register",
-    icon: "ni ni-circle-08 text-pink",
-    component: <Register />,
-    layout: "/auth",
+    path: "/evenement",
+    name: "Evenement Form",
+    icon: "ni ni-pin-3 text-orange",
+    component: <EvenementForm />,
+    layout: "/admin",
+  },
+   {
+    path: "/article",
+    name: "Article Form",
+    icon: "ni ni-pin-3 text-orange",
+    component: <ArticleForm />,
+    layout: "/admin",
   },
 ];
+
 export default routes;
