@@ -1,8 +1,8 @@
 const express = require("express");
 const axios = require("axios");
+const { FUSEKI_URL, fusekiAuth } = require('../config/fuseki');
 const router = express.Router();
 
-const FUSEKI_URL = process.env.FUSEKI_URL;
 
 /**
  * GET /api/users
@@ -26,6 +26,7 @@ router.get("/", async (req, res) => {
     const response = await axios.get(`${FUSEKI_URL}/query`, {
       params: { query },
       headers: { Accept: "application/sparql-results+json" },
+      ...fusekiAuth
     });
 
     const bindings = response.data.results.bindings;

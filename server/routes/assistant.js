@@ -1,12 +1,12 @@
 const express = require("express");
 const axios = require("axios");
+const { FUSEKI_URL, fusekiAuth } = require('../config/fuseki');
 const router = express.Router();
 const {
   analyzeQuestion,
   formatResponse
 } = require("../services/medicalAssistantService");
 
-const FUSEKI_URL = process.env.FUSEKI_URL;
 
 /**
  * POST /api/assistant/ask

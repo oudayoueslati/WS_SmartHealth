@@ -11,6 +11,12 @@ class FusekiClient {
     this.queryEndpoint = `${this.baseUrl}/query`;
     this.updateEndpoint = `${this.baseUrl}/update`;
     this.dataEndpoint = `${this.baseUrl}/data`;
+    
+    // Authentication
+    this.auth = {
+      username: process.env.FUSEKI_USER || 'admin',
+      password: process.env.FUSEKI_PASSWORD || 'admin123'
+    };
   }
 
   /**
@@ -25,6 +31,7 @@ class FusekiClient {
         headers: { 
           Accept: "application/sparql-results+json" 
         },
+        auth: this.auth,
         timeout: 10000 // 10 secondes
       });
       return response.data;
@@ -44,6 +51,7 @@ class FusekiClient {
         headers: { 
           "Content-Type": "application/sparql-update" 
         },
+        auth: this.auth,
         timeout: 10000
       });
       return true;
@@ -64,6 +72,7 @@ class FusekiClient {
         headers: { 
           Accept: "application/sparql-results+json" 
         },
+        auth: this.auth,
         timeout: 5000
       });
       return response.data.boolean;
@@ -84,6 +93,7 @@ class FusekiClient {
         headers: { 
           "Content-Type": contentType 
         },
+        auth: this.auth,
         timeout: 15000
       });
       return true;

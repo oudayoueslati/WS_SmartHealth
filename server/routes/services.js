@@ -1,8 +1,8 @@
 const express = require("express");
 const axios = require("axios");
+const { FUSEKI_URL, fusekiAuth } = require('../config/fuseki');
 const router = express.Router();
 
-const FUSEKI_URL = process.env.FUSEKI_URL;
 
 // Helper functions
 function sanitizeId(s) {
@@ -39,6 +39,7 @@ router.get("/", async (req, res) => {
     const response = await axios.get(`${FUSEKI_URL}/query`, {
       params: { query },
       headers: { Accept: "application/sparql-results+json" },
+      ...fusekiAuth
     });
 
     const bindings = response.data.results.bindings;
@@ -97,6 +98,7 @@ router.post("/", async (req, res) => {
   try {
     await axios.post(`${FUSEKI_URL}/update`, insertQuery, {
       headers: { "Content-Type": "application/sparql-update" },
+      ...fusekiAuth
     });
 
     res.status(201).json({ 
@@ -163,6 +165,7 @@ router.put("/:id", async (req, res) => {
   try {
     await axios.post(`${FUSEKI_URL}/update`, updateQuery, {
       headers: { "Content-Type": "application/sparql-update" },
+      ...fusekiAuth
     });
 
     res.json({ 
@@ -198,6 +201,7 @@ router.delete("/:id", async (req, res) => {
   try {
     await axios.post(`${FUSEKI_URL}/update`, deleteQuery, {
       headers: { "Content-Type": "application/sparql-update" },
+      ...fusekiAuth
     });
 
     res.json({ 

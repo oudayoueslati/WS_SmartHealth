@@ -1,0 +1,47 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix sh: <http://www.smarthealth-tracker.com/ontologie#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Services médicaux
+sh:Consultation_Cardiologie rdf:type sh:Consultation ;
+    sh:label "Consultation Cardiologie" .
+
+sh:Consultation_Dermatologie rdf:type sh:Consultation ;
+    sh:label "Consultation Dermatologie" .
+
+sh:Analyse_Sanguine rdf:type sh:Analyse ;
+    sh:label "Analyse Sanguine Complète" .
+
+sh:Analyse_Urine rdf:type sh:Analyse ;
+    sh:label "Analyse d'Urine" .
+
+sh:Telemedecine_Generaliste rdf:type sh:Telemedecine ;
+    sh:label "Téléconsultation Généraliste" .
+
+sh:Telemedecine_Psychiatrie rdf:type sh:Telemedecine ;
+    sh:label "Téléconsultation Psychiatrie" .
+
+# Paiements
+sh:Paiement_001 rdf:type sh:PaiementFacture ;
+    sh:effectuéPar sh:Utilisateur_nawrasse_elbenna ;
+    sh:correspondÀ sh:Consultation_Cardiologie ;
+    sh:montant "80.00"^^xsd:decimal ;
+    sh:datePaiement "2025-11-03"^^xsd:date ;
+    sh:modePaiement "Carte" ;
+    sh:statusPaiement "PAID" .
+
+sh:Paiement_002 rdf:type sh:PaiementFacture ;
+    sh:effectuéPar sh:Utilisateur_nawrasse_elbenna ;
+    sh:correspondÀ sh:Analyse_Sanguine ;
+    sh:montant "45.50"^^xsd:decimal ;
+    sh:datePaiement "2025-11-02"^^xsd:date ;
+    sh:modePaiement "Espèces" ;
+    sh:statusPaiement "PAID" .
+
+sh:Paiement_003 rdf:type sh:PaiementFacture ;
+    sh:effectuéPar sh:Utilisateur_nawrasse_elbenna ;
+    sh:correspondÀ sh:Telemedecine_Generaliste ;
+    sh:montant "30.00"^^xsd:decimal ;
+    sh:datePaiement "2025-11-01"^^xsd:date ;
+    sh:modePaiement "Virement" ;
+    sh:statusPaiement "PENDING" .

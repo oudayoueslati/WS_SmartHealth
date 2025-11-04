@@ -1,5 +1,6 @@
 const express = require("express");
 const axios = require("axios");
+const { FUSEKI_URL, fusekiAuth } = require('../config/fuseki');
 const router = express.Router();
 const {
   recommendServices,
@@ -7,7 +8,6 @@ const {
   calculateIMC
 } = require("../services/recommendationService");
 
-const FUSEKI_URL = process.env.FUSEKI_URL;
 
 /**
  * POST /api/recommendations/search

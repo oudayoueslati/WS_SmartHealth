@@ -1,15 +1,16 @@
 const express = require("express");
 const axios = require("axios");
 const { v4: uuidv4 } = require("uuid");
+const { FUSEKI_URL, fusekiAuth } = require('../config/fuseki');
 const router = express.Router();
 
-const FUSEKI_URL = process.env.FUSEKI_URL || "http://localhost:3030/smarthealth";
 
 // Préfixes SPARQL
 const PREFIXES = `
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 PREFIX sh: <http://www.smarthealth-tracker.com/ontologie#>
+PREFIX ex: <http://example.org/>
 `;
 
 // ============================================
@@ -30,7 +31,8 @@ async function sparqlSelect(query) {
   try {
     const response = await axios.get(`${FUSEKI_URL}/query`, {
       params: { query },
-      headers: { Accept: "application/sparql-results+json" }
+      headers: { Accept: "application/sparql-results+json" },
+      ...fusekiAuth
     });
     return response.data;
   } catch (err) {
@@ -44,7 +46,8 @@ async function sparqlSelect(query) {
 async function sparqlUpdate(query) {
   try {
     await axios.post(`${FUSEKI_URL}/update`, query, {
-      headers: { "Content-Type": "application/sparql-update" }
+      headers: { "Content-Type": "application/sparql-update" },
+      ...fusekiAuth
     });
     return true;
   } catch (err) {
@@ -58,15 +61,45 @@ async function sparqlUpdate(query) {
 router.get("/", async (req, res) => {
   try {
     const user = req.query.user;
+    
+    // Si aucun user n'est spécifié, retourner tous les paiements
     if (!user) {
-      return res.status(400).json({ 
-        success: false,
-        error: "user query param required" 
+      const query = PREFIXES + `
+SELECT ?paiement ?montant ?date ?service ?status ?ref ?mode ?user WHERE {
+  ?paiement rdf:type sh:PaiementFacture .
+  OPTIONAL { ?paiement sh:montant ?montant . }
+  OPTIONAL { ?paiement sh:datePaiement ?date . }
+  OPTIONAL { ?paiement sh:correspondÀ ?service . }
+  OPTIONAL { ?paiement sh:statusPaiement ?status . }
+  OPTIONAL { ?paiement sh:referenceFacture ?ref . }
+  OPTIONAL { ?paiement sh:modePaiement ?mode . }
+  OPTIONAL { ?paiement sh:effectuéPar ?user . }
+} ORDER BY DESC(?date)
+      `;
+      
+      const json = await sparqlSelect(query);
+      const payments = json.results.bindings.map(b => ({
+        uri: b.paiement.value,
+        id: b.paiement.value.split(/[#\/]/).pop(),
+        montant: b.montant ? parseFloat(b.montant.value) : null,
+        date: b.date ? b.date.value : null,
+        serviceUri: b.service ? b.service.value : null,
+        serviceId: b.service ? b.service.value.split(/[#\/]/).pop() : null,
+        status: b.status ? b.status.value : null,
+        referenceFacture: b.ref ? b.ref.value : null,
+        modePaiement: b.mode ? b.mode.value : null,
+        userUri: b.user ? b.user.value : null,
+        userId: b.user ? b.user.value.split(/[#\/]/).pop() : null
+      }));
+      
+      return res.json({
+        success: true,
+        payments
       });
     }
 
-    const userId = sanitizeId(user.replace(/^sh:/, ''));
-    const userUri = `sh:${userId}`;
+    const userId = sanitizeId(user.replace(/^(sh:|ex:)/, ''));
+    const userUri = `ex:${userId}`;
 
     const query = PREFIXES + `
 SELECT ?paiement ?montant ?date ?service ?status ?ref ?mode WHERE {
@@ -169,12 +202,12 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const uid = sanitizeId(user.replace(/^sh:/, ''));
+    const uid = sanitizeId(user.replace(/^(sh:|ex:)/, ''));
     const sid = sanitizeId(service.replace(/^sh:/, ''));
     const pid = `Paiement_${uuidv4().replace(/-/g, '')}`;
     const resource = `sh:${pid}`;
 
-    const userUri = `sh:${uid}`;
+    const userUri = `ex:${uid}`;
     const serviceUri = `sh:${sid}`;
     const dateVal = date ? date : new Date().toISOString().slice(0, 10);
 
@@ -329,8 +362,8 @@ DELETE WHERE { ${resource} ?p ?o . }
 router.get("/stats/:user", async (req, res) => {
   try {
     const user = req.params.user;
-    const userId = sanitizeId(user.replace(/^sh:/, ''));
-    const userUri = `sh:${userId}`;
+    const userId = sanitizeId(user.replace(/^(sh:|ex:)/, ''));
+    const userUri = `ex:${userId}`;
 
     const query = PREFIXES + `
 SELECT 

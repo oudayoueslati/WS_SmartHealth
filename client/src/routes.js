@@ -23,6 +23,13 @@ import Login from "views/examples/Login.jsx";
 import Tables from "views/examples/Tables.jsx";
 import Icons from "views/examples/Icons.jsx";
 import HealthPrograms from "views/HealthPrograms.jsx";
+import Services from "views/Services.jsx";
+import Payments from "views/Payments.jsx";
+import ServiceRecommendations from "views/ServiceRecommendations.jsx";
+import MedicalAssistant from "views/MedicalAssistant.jsx";
+import AdminDashboard from "views/AdminDashboard.jsx";
+import AdminPayments from "views/AdminPayments.jsx";
+import AdminServices from "views/AdminServices.jsx";
 
 var routes = [
   {
@@ -37,6 +44,55 @@ var routes = [
     name: "Health Programs",
     icon: "ni ni-favourite-28 text-red",
     component: <HealthPrograms />,
+    layout: "/admin",
+  },
+  {
+    path: "/services",
+    name: "Services",
+    icon: "ni ni-briefcase-24 text-blue",
+    component: <Services />,
+    layout: "/admin",
+  },
+  {
+    path: "/payments",
+    name: "Paiements",
+    icon: "ni ni-credit-card text-green",
+    component: <Payments />,
+    layout: "/admin",
+  },
+  {
+    path: "/recommendations",
+    name: "Recommandations IA",
+    icon: "ni ni-bulb-61 text-yellow",
+    component: <ServiceRecommendations />,
+    layout: "/admin",
+  },
+  {
+    path: "/assistant",
+    name: "Assistant Médical",
+    icon: "ni ni-chat-round text-info",
+    component: <MedicalAssistant />,
+    layout: "/admin",
+  },
+  {
+    path: "/admin-dashboard",
+    name: "Admin Dashboard",
+    icon: "ni ni-chart-pie-35 text-purple",
+    component: <AdminDashboard />,
+    layout: "/admin",
+  },
+  {
+    path: "/admin-payments",
+    name: "Admin Paiements",
+    icon: "ni ni-money-coins text-orange",
+    component: <AdminPayments />,
+    layout: "/admin",
+  },
+  {
+    path: "/admin-services",
+    name: "Admin Services",
+    icon: "ni ni-settings-gear-65 text-cyan",
+    component: <AdminServices />,
     layout: "/admin",
   },
   {

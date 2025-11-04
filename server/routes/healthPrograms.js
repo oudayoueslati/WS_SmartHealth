@@ -1,8 +1,9 @@
+const { FUSEKI_URL, fusekiAuth } = require('../config/fuseki');
 const express = require("express");
 const axios = require("axios");
 const router = express.Router();
 
-const FUSEKI_URL = process.env.FUSEKI_URL || "http://localhost:3030/usersDB";
+
 
 // ============================================
 // CREATE - Créer un nouveau programme

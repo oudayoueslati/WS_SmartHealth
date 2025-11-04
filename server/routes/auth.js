@@ -7,6 +7,15 @@ const router = express.Router();
 const FUSEKI_URL = process.env.FUSEKI_URL ;
 const JWT_SECRET = process.env.JWT_SECRET ;
 const JWT_EXPIRE = process.env.JWT_EXPIRE ;
+const FUSEKI_USER = process.env.FUSEKI_USER || 'admin';
+const FUSEKI_PASSWORD = process.env.FUSEKI_PASSWORD || 'admin123';
+
+const fusekiAuth = {
+  auth: {
+    username: FUSEKI_USER,
+    password: FUSEKI_PASSWORD
+  }
+};
 
 const generateToken = (username, email) => {
   return jwt.sign({ username, email }, JWT_SECRET, { expiresIn: JWT_EXPIRE });
@@ -36,6 +45,7 @@ router.post("/signup", async (req, res) => {
     const checkEmailResponse = await axios.get(`${FUSEKI_URL}/query`, {
       params: { query: checkEmailQuery },
       headers: { Accept: "application/sparql-results+json" },
+      ...fusekiAuth
     });
 
     if (checkEmailResponse.data.boolean) {
@@ -61,6 +71,7 @@ router.post("/signup", async (req, res) => {
 
     await axios.post(`${FUSEKI_URL}/data`, userTTL, {
       headers: { "Content-Type": "text/turtle" },
+      ...fusekiAuth
     });
 
     // Generate JWT token
@@ -109,6 +120,7 @@ router.post("/login", async (req, res) => {
     const response = await axios.get(`${FUSEKI_URL}/query`, {
       params: { query },
       headers: { Accept: "application/sparql-results+json" },
+      ...fusekiAuth
     });
 
     if (response.data.results.bindings.length > 0) {
