@@ -8,6 +8,8 @@ const healthProgramRoutes = require("./routes/healthPrograms");
 const habitudeRoutes = require("./routes/habits");
 const habitudeLogsRoutes = require("./routes/habitLogs");
 const authRoutes = require("./routes/auth");
+const saifAiRoutes = require('./routes/saif-ai-sparql');
+
 // Exemple de connexion
 const login = (userData) => {
   localStorage.setItem("currentUser", JSON.stringify(userData));
@@ -30,6 +32,22 @@ app.use("/api/auth", authRoutes);
 app.use("/api/health-programs", healthProgramRoutes);
 app.use("/api/habitudes", habitudeRoutes);
 app.use("/api/habitude-logs", habitudeLogsRoutes);
+app.use('/api/saif-ai', saifAiRoutes); // ✅ Cette ligne est cruciale
+// Route de test
+app.get("/api/test", (req, res) => {
+  res.json({ 
+    message: "✅ Backend API is running",
+    saifAI: "🟢 Route Saif AI disponible",
+    timestamp: new Date().toISOString(),
+    availableRoutes: [
+      "GET /api/saif-ai/statut",
+      "POST /api/saif-ai/comprendre",
+      "POST /api/saif-ai/executer",
+      "POST /api/saif-ai/apprendre"
+    ]
+  });
+});
+
 
 // Health check
 app.get("/", (req, res) => {
