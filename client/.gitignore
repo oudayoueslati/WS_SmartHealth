@@ -1,0 +1,14 @@
+echo "node_modules/
+client/node_modules/
+client/build/
+.env
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
+.vscode/
+" > .gitignore
+
+git add .gitignore
+git commit -m "🧹 Ajout .gitignore propre pour ignorer les fichiers temporaires"
