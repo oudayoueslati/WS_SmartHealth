@@ -103,7 +103,7 @@ class ScoresAIProcessor:
         numbers = re.findall(r'\d+', question_lower)
         
         # Filtres pour scores élevés
-        if any(word in question_lower for word in ['élevé', 'haut', 'supérieur', 'excellent', 'bon']):
+        if any(word in question_lower for word in ['élevé', 'haut', 'supérieur', 'excellent', 'bon', 'Bon']):
             filters.append({'field': 'globale', 'operator': '>', 'value': '80', 'description': 'Score excellent (>80)'})
         
         # Filtres pour scores faibles
@@ -228,5 +228,5 @@ async def health_check():
     return {"status": "AI API is running", "version": "spaCy"}
 
 if __name__ == "__main__":
-    print("🚀 Starting AI Mesures API on http://localhost:8000")
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    print("🚀 Starting AI Mesures API on http://localhost:8002")
+    uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True)

@@ -24,7 +24,7 @@ const AIBox = ({ entity }) => {
     setError("");
     setResponse(null);
     try {
-      const res = await axios.post("http://localhost:8000/ai/execute", {
+      const res = await axios.post("http://localhost:8001/ai/execute", {
         entity,
         command,
       });

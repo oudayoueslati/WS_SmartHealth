@@ -227,7 +227,7 @@ const MesureForm = () => {
     
     setIsAiLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/ai/process', {
+      const response = await fetch('http://localhost:8002/ai/process', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

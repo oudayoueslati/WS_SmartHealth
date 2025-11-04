@@ -231,7 +231,7 @@ const ScoreSanteForm = () => {
     
     setIsAiLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/ai/process-scores', {
+      const response = await fetch('http://localhost:8002/ai/process-scores', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

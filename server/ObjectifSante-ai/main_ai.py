@@ -49,13 +49,13 @@ def send_sparql_select(query: str):
 
 def detect_action(text: str):
     text = text.lower()
-    if any(k in text for k in ["ajoute", "crée", "ajouter", "créer"]):
+    if any(k in text for k in ["ajoute", "crée", "ajouter", "créer", "insère"]):
         return "create"
-    if any(k in text for k in ["modifie", "mets à jour", "éditer"]):
+    if any(k in text for k in ["modifie", "mets à jour", "éditer", "change", "corrige", "remplace", "actualise"]):
         return "update"
-    if any(k in text for k in ["supprime", "efface", "enlève"]):
+    if any(k in text for k in ["supprime", "efface", "enlève", "retire", "delete"]):
         return "delete"
-    if any(k in text for k in ["affiche", "liste", "montre", "cherche"]):
+    if any(k in text for k in ["affiche", "liste", "montre", "cherche", "montrez", "vois", "montre-moi"]):
         return "read"
     return "read"
 
@@ -77,6 +77,7 @@ def sparql_etat_sante(action: str, text: str):
 
     now = datetime.datetime.utcnow().isoformat()
 
+    # 🟢 CREATE
     if action == "create":
         return f"""
         PREFIX sh: <{PREFIX}>
@@ -91,6 +92,7 @@ def sparql_etat_sante(action: str, text: str):
         }}
         """
 
+    # 🔵 READ
     if action == "read":
         return f"""
         PREFIX sh: <{PREFIX}>
@@ -106,16 +108,36 @@ def sparql_etat_sante(action: str, text: str):
         ORDER BY DESC(?date)
         """
 
+    # 🔴 DELETE
     if action == "delete":
         return f"PREFIX sh: <{PREFIX}> DELETE WHERE {{ ?s a sh:EtatSante ; ?p ?o . }}"
 
+    # 🟡 UPDATE dynamique
     if action == "update":
+        field = None
+        if "poids" in text:
+            field = "aPoids"
+        elif "taille" in text:
+            field = "aTaille"
+        elif "pression" in text:
+            field = "aPression"
+        elif "temp" in text or "degré" in text or "temperature" in text:
+            field = "aTemperature"
+
+        nums = extract_numbers(text)
+        new_value = nums[-1] if nums else None
+
+        if not field or new_value is None:
+            return "# ❌ Impossible de détecter le champ ou la valeur à mettre à jour"
+
+        datatype = "xsd:decimal" if field != "aPression" else "xsd:string"
+
         return f"""
         PREFIX sh: <{PREFIX}>
         PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-        DELETE {{ ?s sh:aTemperature ?oldTemp }}
-        INSERT {{ ?s sh:aTemperature "{temperature or 36.9}"^^xsd:decimal }}
-        WHERE {{ ?s a sh:EtatSante ; sh:aTemperature ?oldTemp }}
+        DELETE {{ ?s sh:{field} ?old }}
+        INSERT {{ ?s sh:{field} "{new_value}"^^{datatype} }}
+        WHERE  {{ ?s a sh:EtatSante ; sh:{field} ?old }}
         """
 
 # ----------------------------------------------
@@ -132,6 +154,7 @@ def sparql_objectif(action: str, text: str):
     else:
         type_obj = "Objectif général"
 
+    # 🟢 CREATE
     if action == "create":
         return f"""
         PREFIX sh: <{PREFIX}>
@@ -146,6 +169,7 @@ def sparql_objectif(action: str, text: str):
         }}
         """
 
+    # 🔵 READ
     if action == "read":
         return f"""
         PREFIX sh: <{PREFIX}>
@@ -161,9 +185,11 @@ def sparql_objectif(action: str, text: str):
         ORDER BY DESC(?dateDebut)
         """
 
+    # 🔴 DELETE
     if action == "delete":
         return f"PREFIX sh: <{PREFIX}> DELETE WHERE {{ ?s a sh:Objectif ; ?p ?o . }}"
 
+    # 🟡 UPDATE
     if action == "update":
         return f"""
         PREFIX sh: <{PREFIX}>
