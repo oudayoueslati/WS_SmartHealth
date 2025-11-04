@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import './SaifAIChat.css';
-
+import Header from "components/Headers/Header.js";
 
 // Configuration API directe (solution temporaire)
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -195,6 +195,9 @@ const SaifAIChat = () => {
   };
 
   return (
+    <>
+    <Header />
+  
     <div className="saif-ai-chat">
       {/* En-tête avec indicateur de connexion */}
       <div className="chat-header">
@@ -327,6 +330,7 @@ const SaifAIChat = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
