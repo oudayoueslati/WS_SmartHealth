@@ -13,6 +13,7 @@ import HabitudeLogList from "./components/HabitudeLogs/HabitudeLogList";
 import AdminLayout from "layouts/Admin.js";
 import AuthLayout from "layouts/Auth.js";
 import { AuthProvider } from "./context/AuthContext";
+import SaifAIChat from './components/Habitude/SaifAIChat';
 
 // ✅ Point d'entrée
 const root = ReactDOM.createRoot(document.getElementById("root"));
@@ -28,8 +29,11 @@ root.render(
         <Route path="/auth/*" element={<AuthLayout />} />
 
         {/* Modules CRUD */}
-        <Route path="/habitudes" element={<HabitudeList />} />
+        <Route path="/admin/habitudes" element={<HabitudeList />} />
         <Route path="/habitude-logs" element={<HabitudeLogList />} />
+        <Route path="/aichat" element={<SaifAIChat />} />
+
+
 
         {/* Redirection par défaut */}
         <Route path="*" element={<Navigate to="/auth/login" replace />} />
