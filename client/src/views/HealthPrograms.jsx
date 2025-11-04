@@ -63,11 +63,9 @@ const AISparql = () => {
     name: "",
     description: "",
     duration: "",
-    goals: "",
     assignedToUserId: "",
     scoreId: "",
     serviceId: "",
-    etatSanteId: "",
     objectifId: ""
   });
 
@@ -285,11 +283,9 @@ const AISparql = () => {
       name: "",
       description: "",
       duration: "",
-      goals: "",
       assignedToUserId: "",
       scoreId: "",
       serviceId: "",
-      etatSanteId: "",
       objectifId: ""
     });
     setEditMode(false);
@@ -308,11 +304,9 @@ const AISparql = () => {
       name: program.name,
       description: program.description,
       duration: program.duration,
-      goals: program.goals,
       assignedToUserId: program.relations?.assignedTo || "",
       scoreId: program.relations?.score || "",
       serviceId: program.relations?.service || "",
-      etatSanteId: program.relations?.etatSante || "",
       objectifId: program.relations?.objectif || ""
     });
     setCurrentProgram(program);
@@ -879,7 +873,7 @@ const AISparql = () => {
               </FormGroup>
 
               <Row>
-                <Col md="6">
+                <Col md="12">
                   <FormGroup>
                     <Label for="duration">Durée</Label>
                     <Input
@@ -892,19 +886,7 @@ const AISparql = () => {
                     />
                   </FormGroup>
                 </Col>
-                <Col md="6">
-                  <FormGroup>
-                    <Label for="goals">Objectifs</Label>
-                    <Input
-                      type="text"
-                      name="goals"
-                      id="goals"
-                      placeholder="Entrez les objectifs"
-                      value={formData.goals}
-                      onChange={handleInputChange}
-                    />
-                  </FormGroup>
-                </Col>
+                
               </Row>
 
               <hr />
@@ -981,19 +963,7 @@ const AISparql = () => {
                         </Input>
                       </FormGroup>
                     </Col>
-                    <Col md="6">
-                      <FormGroup>
-                        <Label for="etatSanteId">État Santé ID</Label>
-                        <Input
-                          type="text"
-                          name="etatSanteId"
-                          id="etatSanteId"
-                          placeholder="ex: etat_1"
-                          value={formData.etatSanteId}
-                          onChange={handleInputChange}
-                        />
-                      </FormGroup>
-                    </Col>
+                    
                   </Row>
 
                   <FormGroup>
