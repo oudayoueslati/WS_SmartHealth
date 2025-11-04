@@ -42,12 +42,6 @@ const ArticleForm = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [evenementsDisponibles, setEvenementsDisponibles] = useState([]);
-  
-  // États pour l'AI
-  const [aiInput, setAiInput] = useState("");
-  const [aiResponse, setAiResponse] = useState(null);
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [activeFilters, setActiveFilters] = useState([]);
 
   useEffect(() => {
     fetchArticles();
@@ -56,7 +50,7 @@ const ArticleForm = () => {
 
   useEffect(() => {
     filterArticles();
-  }, [searchTerm, articles, sortConfig, activeFilters]);
+  }, [searchTerm, articles, sortConfig]);
 
   const fetchArticles = async () => {
     setLoading(true);
@@ -92,213 +86,6 @@ const ArticleForm = () => {
     }
   };
 
-  // Fonction pour appliquer les filtres AI
-  const applyAIFilters = (filters) => {
-    if (!filters || filters.length === 0) {
-      setActiveFilters([]);
-      return;
-    }
-
-    setActiveFilters(filters);
-    
-    const filterDescriptions = filters.map(f => 
-      f.description || `${f.field} ${f.operator} ${f.value}`
-    );
-    showAlert(`🎯 Filtres AI appliqués: ${filterDescriptions.join(', ')}`, "success");
-  };
-
-  // Fonction pour exécuter la création automatique
-  const executeAICreate = async (aiResult) => {
-    try {
-      const response = await fetch('http://localhost:5000/api/articles', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          aNom: aiResult.data.aNom || "Nouvel Article",
-          aDescriptionArc: aiResult.data.aDescriptionArc || "Description par défaut",
-          aTypePai: aiResult.data.aTypePai || "Standard",
-          aImageArct: aiResult.data.aImageArct || "",
-          evenementLie: aiResult.data.evenementLie || ""
-        })
-      });
-
-      if (response.ok) {
-        showAlert("✅ Article créé automatiquement avec succès!", "success");
-        fetchArticles();
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erreur lors de la création automatique');
-      }
-    } catch (error) {
-      showAlert("❌ Erreur création automatique: " + error.message, "danger");
-    }
-  };
-
-  // Fonction pour exécuter l'édition automatique
-  const executeAIUpdate = async (aiResult, originalQuestion) => {
-    try {
-      // Trouver l'article à modifier
-      let articleToEdit = null;
-      
-      if (filteredArticles.length > 0) {
-        articleToEdit = filteredArticles[0];
-      } else {
-        articleToEdit = articles[0];
-      }
-      
-      if (articleToEdit) {
-        const articleId = articleToEdit.article.value.split('#')[1];
-        
-        // Préparer les données de mise à jour
-        const updateData = {
-          aNom: aiResult.data?.aNom || articleToEdit.aNom?.value,
-          aDescriptionArc: aiResult.data?.aDescriptionArc || articleToEdit.aDescriptionArc?.value,
-          aTypePai: aiResult.data?.aTypePai || articleToEdit.aTypePai?.value,
-          aImageArct: aiResult.data?.aImageArct || articleToEdit.aImageArct?.value,
-          evenementLie: aiResult.data?.evenementLie || (articleToEdit.evenementLie?.value ? articleToEdit.evenementLie.value.split('#')[1] : "")
-        };
-        
-        console.log("📝 Édition automatique des données:", updateData);
-        
-        // Exécuter la mise à jour
-        const response = await fetch(`http://localhost:5000/api/articles/${articleId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(updateData)
-        });
-
-        if (response.ok) {
-          showAlert(`✅ Article modifié automatiquement!`, "success");
-          fetchArticles();
-        } else {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Erreur lors de la modification automatique');
-        }
-      } else {
-        showAlert("❌ Aucun article trouvé pour modification automatique", "warning");
-      }
-    } catch (error) {
-      showAlert("❌ Erreur édition automatique: " + error.message, "danger");
-    }
-  };
-
-  // Fonction de suppression directe
-  const handleDeleteDirect = async (articleUri) => {
-    try {
-      const articleId = articleUri.split('#')[1];
-      const response = await fetch(`http://localhost:5000/api/articles/${articleId}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        fetchArticles();
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erreur lors de la suppression');
-      }
-    } catch (error) {
-      showAlert("Erreur: " + error.message, "danger");
-    }
-  };
-
-  // Fonction pour exécuter la suppression automatique
-  const executeAIDelete = async (aiResult) => {
-    if (filteredArticles.length === 0) {
-      showAlert("❌ Aucun article à supprimer trouvé", "warning");
-      return;
-    }
-
-    try {
-      let deletedCount = 0;
-      
-      if (aiResult.filters && aiResult.filters.length > 0) {
-        for (const article of filteredArticles) {
-          await handleDeleteDirect(article.article.value);
-          deletedCount++;
-        }
-        showAlert(`✅ ${deletedCount} article(s) supprimé(s) automatiquement!`, "success");
-      } else {
-        const articleToDelete = filteredArticles[0];
-        await handleDeleteDirect(articleToDelete.article.value);
-        showAlert("✅ Article supprimé automatiquement!", "success");
-      }
-    } catch (error) {
-      showAlert("❌ Erreur suppression automatique: " + error.message, "danger");
-    }
-  };
-
-  // Fonction pour traiter les questions AI
-  const processAIQuestion = async (question) => {
-    if (!question.trim()) return;
-    
-    setIsAiLoading(true);
-    try {
-      const response = await fetch('http://localhost:8000/ai/process-articles', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          question: question
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`AI service error: ${response.status}`);
-      }
-
-      const aiResult = await response.json();
-      setAiResponse(aiResult);
-      
-      console.log("🤖 Résultat AI reçu:", aiResult);
-
-      // CRÉATION - EXÉCUTION AUTOMATIQUE
-      if (aiResult.action === 'create' && aiResult.data) {
-        showAlert("🤖 " + aiResult.natural_response, "success");
-        setTimeout(() => {
-          executeAICreate(aiResult);
-        }, 1000);
-      } 
-      // RECHERCHE AVEC FILTRES - AUTOMATIQUE
-      else if (aiResult.action === 'read') {
-        console.log("🔍 Données AI reçues pour recherche:", aiResult);
-        if (aiResult.filters && aiResult.filters.length > 0) {
-          applyAIFilters(aiResult.filters);
-          showAlert("🎯 " + aiResult.natural_response, "success");
-        } else {
-          showAlert(aiResult.natural_response, "info");
-        }
-      }
-      // SUPPRESSION - EXÉCUTION AUTOMATIQUE
-      else if (aiResult.action === 'delete') {
-        showAlert("🗑️ " + aiResult.natural_response, "warning");
-        setTimeout(() => {
-          executeAIDelete(aiResult);
-        }, 1000);
-      }
-      // ÉDITION - EXÉCUTION AUTOMATIQUE
-      else if (aiResult.action === 'update') {
-        showAlert("✏️ " + aiResult.natural_response, "success");
-        setTimeout(() => {
-          executeAIUpdate(aiResult, question);
-        }, 1000);
-      }
-      else {
-        showAlert(aiResult.natural_response, "info");
-      }
-      
-    } catch (error) {
-      showAlert("Erreur AI: " + error.message, "danger");
-    } finally {
-      setIsAiLoading(false);
-      setAiInput("");
-    }
-  };
-
   const filterArticles = () => {
     let filtered = articles.filter(article => {
       const aNom = article.aNom?.value || '';
@@ -310,7 +97,7 @@ const ArticleForm = () => {
 
       const searchLower = searchTerm.toLowerCase();
       
-      const searchMatch = (
+      return (
         aNom.toString().toLowerCase().includes(searchLower) ||
         aDescriptionArc.toString().toLowerCase().includes(searchLower) ||
         aTypePai.toString().toLowerCase().includes(searchLower) ||
@@ -318,36 +105,6 @@ const ArticleForm = () => {
         evenementTitre.toString().toLowerCase().includes(searchLower) ||
         id.toLowerCase().includes(searchLower)
       );
-
-      // Filtre par critères AI
-      const aiFilterMatch = activeFilters.length === 0 ? true : 
-        activeFilters.every(filter => {
-          let value;
-          if (filter.field === 'aNom') {
-            value = article.aNom?.value;
-          } else if (filter.field === 'aTypePai') {
-            value = article.aTypePai?.value;
-          } else if (filter.field === 'aDescriptionArc') {
-            value = article.aDescriptionArc?.value;
-          }
-          
-          if (!value) return false;
-          
-          switch (filter.operator) {
-            case 'contains':
-              return value.toLowerCase().includes(filter.value.toLowerCase());
-            case '==':
-              return value === filter.value;
-            case '>':
-              return value > filter.value;
-            case '<':
-              return value < filter.value;
-            default:
-              return true;
-          }
-        });
-
-      return searchMatch && aiFilterMatch;
     });
 
     if (sortConfig.key) {
@@ -398,13 +155,6 @@ const ArticleForm = () => {
 
   const onDismiss = () => setAlert({ ...alert, visible: false });
 
-  // Réinitialiser les filtres AI
-  const resetAIFilters = () => {
-    setActiveFilters([]);
-    setAiResponse(null);
-    showAlert("Filtres AI réinitialisés", "info");
-  };
-
   // Ouvrir modal d'ajout
   const openAddModal = () => {
     setFormData({ 
@@ -414,7 +164,6 @@ const ArticleForm = () => {
       aImageArct: "", 
       evenementLie: "" 
     });
-    setAiResponse(null);
     setAddModal(true);
   };
 
@@ -594,132 +343,12 @@ const ArticleForm = () => {
 
         <Row>
           <Col>
-            {/* CARTE ASSISTANT AI */}
-            <Card className="bg-gradient-info text-white mb-4">
-              <CardHeader className="bg-transparent">
-                <Row className="align-items-center">
-                  <Col>
-                    <h5 className="text-white mb-0">🤖 Assistant IA - Articles</h5>
-                  </Col>
-                  <Col className="text-right">
-                    <Badge color="light" className="text-info">
-                      BETA
-                    </Badge>
-                  </Col>
-                </Row>
-              </CardHeader>
-              <CardBody>
-                <Row className="align-items-center">
-                  <Col lg="8">
-                    <p className="text-light mb-2">
-                      <strong>Exemples :</strong> "Ajoute article conférence Paris", "Affiche articles premium", "Supprime un article"
-                    </p>
-                    <div className="d-flex flex-wrap gap-2">
-                      {["Ajoute article Réunion Tokyo", "Affiche articles standard", "Article premium", "Supprime un article"].map((example, idx) => (
-                        <Badge 
-                          key={idx}
-                          color="light" 
-                          className="cursor-pointer text-info"
-                          onClick={() => processAIQuestion(example)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          {example}
-                        </Badge>
-                      ))}
-                    </div>
-                  </Col>
-                  <Col lg="4">
-                    <InputGroup>
-                      <Input 
-                        placeholder="Posez votre question..."
-                        value={aiInput}
-                        onChange={(e) => setAiInput(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && processAIQuestion(aiInput)}
-                        disabled={isAiLoading}
-                      />
-                      <Button 
-                        color="white" 
-                        disabled={isAiLoading || !aiInput.trim()}
-                        onClick={() => processAIQuestion(aiInput)}
-                      >
-                        {isAiLoading ? (
-                          <>
-                            <span className="spinner-border spinner-border-sm mr-2" />
-                            Analyse...
-                          </>
-                        ) : (
-                          "➡️ Envoyer"
-                        )}
-                      </Button>
-                    </InputGroup>
-                  </Col>
-                </Row>
-
-                {/* Affichage des filtres actifs */}
-                {activeFilters.length > 0 && (
-                  <div className="mt-3 p-2 bg-warning text-dark rounded">
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div>
-                        <strong>🎯 Filtres AI actifs:</strong>
-                        {activeFilters.map((filter, idx) => (
-                          <Badge key={idx} color="dark" className="ml-2">
-                            {filter.description || `${filter.field} ${filter.operator} ${filter.value}`}
-                          </Badge>
-                        ))}
-                      </div>
-                      <Button size="sm" color="dark" onClick={resetAIFilters}>
-                        × Réinitialiser
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Affichage de la réponse AI */}
-                {aiResponse && (
-                  <div className="mt-3 p-3 bg-white rounded text-dark">
-                    <div className="d-flex justify-content-between align-items-start mb-2">
-                      <strong>🤖 Réponse:</strong>
-                      <Button 
-                        size="sm" 
-                        color="outline-dark"
-                        onClick={() => setAiResponse(null)}
-                      >
-                        ×
-                      </Button>
-                    </div>
-                    <p className="mb-2">{aiResponse.natural_response}</p>
-                    
-                    {aiResponse.suggestions && aiResponse.suggestions.length > 0 && (
-                      <div className="mt-2">
-                        <small className="text-muted">
-                          <strong>Suggestions:</strong> {aiResponse.suggestions.join(" • ")}
-                        </small>
-                      </div>
-                    )}
-                    
-                    {aiResponse.data && Object.keys(aiResponse.data).length > 0 && (
-                      <div className="mt-2">
-                        <small className="text-success">
-                          <strong>Données détectées:</strong> {JSON.stringify(aiResponse.data)}
-                        </small>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-
             {/* CARTE PRINCIPALE DES ARTICLES */}
             <Card className="shadow">
               <CardHeader className="bg-transparent">
                 <Row className="align-items-center">
                   <Col>
                     <h3 className="mb-0">📰 Gestion des Articles</h3>
-                    {activeFilters.length > 0 && (
-                      <small className="text-muted">
-                        Affichage filtré par AI ({filteredArticles.length} résultat(s))
-                      </small>
-                    )}
                   </Col>
                   <Col className="text-right">
                     <Button 
@@ -736,19 +365,9 @@ const ArticleForm = () => {
                         fetchArticles();
                         fetchEvenementsDisponibles();
                       }}
-                      className="mr-2"
                     >
                       🔄 Actualiser
                     </Button>
-                    {activeFilters.length > 0 && (
-                      <Button 
-                        color="warning" 
-                        size="sm" 
-                        onClick={resetAIFilters}
-                      >
-                        🗑️ Effacer filtres
-                      </Button>
-                    )}
                   </Col>
                 </Row>
               </CardHeader>
@@ -769,7 +388,6 @@ const ArticleForm = () => {
                     <div className="d-flex align-items-center justify-content-end">
                       <Badge color="primary" className="p-2 mr-3">
                         {filteredArticles.length} / {articles.length} résultats
-                        {activeFilters.length > 0 && " (filtré)"}
                       </Badge>
                       
                       <ButtonGroup size="sm">
@@ -908,17 +526,6 @@ const ArticleForm = () => {
                               <i className="ni ni-single-copy-04 ni-3x mb-3"></i>
                               <br />
                               {articles.length === 0 ? 'Aucun article trouvé' : 'Aucun résultat pour votre recherche'}
-                              {activeFilters.length > 0 && (
-                                <div className="mt-2">
-                                  <Button 
-                                    color="warning" 
-                                    size="sm"
-                                    onClick={resetAIFilters}
-                                  >
-                                    🗑️ Effacer les filtres AI
-                                  </Button>
-                                </div>
-                              )}
                               <br />
                               <Button 
                                 color="primary" 

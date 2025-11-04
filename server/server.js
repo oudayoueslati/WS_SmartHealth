@@ -7,6 +7,9 @@ const authRoutes = require("./routes/auth");
 const healthProgramRoutes = require("./routes/healthPrograms");
 const evenementRoutes = require("./routes/evenementRoutes"); 
 const articleRoutes = require("./routes/articleRoutes"); 
+const aiRoutes = require("./routes/aiRoutes"); 
+const aiarticleRoutes = require("./routes/ai-articles"); 
+const aienhancedRoutes = require("./routes/ai-enhanced"); 
 
 const app = express();
 
@@ -19,6 +22,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/health-programs", healthProgramRoutes);
 app.use("/api/evenements", evenementRoutes);
 app.use("/api/articles", articleRoutes);
+app.use("/ai", aiRoutes);
+app.use("/aiarticle", aiarticleRoutes);
+app.use("/aienhanced", aienhancedRoutes);
+
 
 // ✅ Health check
 app.get("/", (req, res) => {
