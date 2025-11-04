@@ -20,11 +20,10 @@ const loadOntology = () => {
     if (fs.existsSync(ontologyPath)) {
       ONTOLOGY_CONTENT = fs.readFileSync(ontologyPath, 'utf8');
       console.log("✅ Ontologie chargée depuis:", ontologyPath);
-      // Extraire les classes et propriétés pertinentes
       const classMatches = ONTOLOGY_CONTENT.matchAll(/ontologie:(\w+)\s+rdf:type\s+owl:Class/g);
       ONTOLOGY_CLASSES = [...classMatches].map(match => match[1]).filter(c => ["Utilisateur", "ProgrammeSante"].includes(c));
       const propMatches = ONTOLOGY_CONTENT.matchAll(/ontologie:(\w+)\s+rdf:type\s+owl:(?:Object|Datatype)Property/g);
-      ONTOLOGY_PROPERTIES = [...propMatches].map(match => match[1]).filter(p => ["SMedicale"].includes(p)); // Garder seulement les propriétés pertinentes
+      ONTOLOGY_PROPERTIES = [...propMatches].map(match => match[1]).filter(p => ["SMedicale"].includes(p));
       console.log("📊 Classes trouvées:", ONTOLOGY_CLASSES);
       console.log("🔗 Propriétés trouvées:", ONTOLOGY_PROPERTIES);
     } else {
@@ -44,11 +43,10 @@ const useDefaultOntology = () => {
   ONTOLOGY_CONTENT = `Classes disponibles: ${ONTOLOGY_CLASSES.join(", ")} Propriétés disponibles: ${ONTOLOGY_PROPERTIES.join(", ")}`;
 };
 
-// Charger l'ontologie au démarrage
 loadOntology();
 
 // ============================================
-// Système de prompts basé sur votre ontologie simplifiée
+// Système de prompts
 // ============================================
 const generateSystemPrompt = () => {
   return `Tu es un expert en Web Sémantique et SPARQL. Tu génères des requêtes SPARQL précises basées sur l'ontologie Smart Health Tracker, en te concentrant uniquement sur Utilisateur et ProgrammeSante.
@@ -150,7 +148,7 @@ const callGroqAPI = async (userPrompt) => {
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
-        model: 'llama-3.3-70b-versatile', // Modèle mis à jour
+        model: 'llama-3.3-70b-versatile',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -175,7 +173,7 @@ const callGroqAPI = async (userPrompt) => {
 };
 
 // ============================================
-// Fonction pour nettoyer la requête SPARQL
+// Fonctions utilitaires
 // ============================================
 const cleanSparqlQuery = (query) => {
   query = query.replace(/```sparql\n?/g, '').replace(/```\n?/g, '');
@@ -187,9 +185,6 @@ const cleanSparqlQuery = (query) => {
   return query;
 };
 
-// ============================================
-// Fonction pour exécuter une requête SPARQL
-// ============================================
 const executeSparqlQuery = async (query, queryType = 'SELECT') => {
   try {
     if (queryType === 'SELECT' || queryType === 'ASK') {
@@ -210,9 +205,6 @@ const executeSparqlQuery = async (query, queryType = 'SELECT') => {
   }
 };
 
-// ============================================
-// Détecter le type de requête SPARQL
-// ============================================
 const detectQueryType = (query) => {
   const upperQuery = query.toUpperCase();
   if (upperQuery.includes('SELECT')) return 'SELECT';
@@ -249,7 +241,7 @@ router.post("/generate", async (req, res) => {
 });
 
 // ============================================
-// POST - Actions intelligentes prédéfinies (simplifiées)
+// POST - Actions intelligentes prédéfinies
 // ============================================
 router.post("/smart-action", async (req, res) => {
   const { action, params } = req.body;
@@ -292,7 +284,285 @@ router.post("/smart-action", async (req, res) => {
 });
 
 // ============================================
-// GET - Obtenir des suggestions de requêtes (simplifiées)
+// GET - Récupérer tous les utilisateurs depuis Fuseki (CORRIGÉ)
+// ============================================
+router.get("/users", async (req, res) => {
+  const query = `
+    PREFIX ontologie: <http://www.smarthealth-tracker.com/ontologie#>
+    PREFIX ex: <http://example.org/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT DISTINCT ?user ?username ?email ?age
+    WHERE {
+      ?user rdf:type ontologie:Utilisateur .
+      OPTIONAL { ?user ex:username ?username . }
+      OPTIONAL { ?user ex:email ?email . }
+      OPTIONAL { ?user ex:age ?age . }
+    }
+    ORDER BY ?user
+  `;
+
+  try {
+    console.log("🔍 Exécution de la requête utilisateurs...");
+    const response = await axios.get(`${FUSEKI_URL}/query`, {
+      params: { query },
+      headers: { Accept: "application/sparql-results+json" },
+    });
+
+    console.log("📊 Résultats bruts:", JSON.stringify(response.data.results.bindings, null, 2));
+
+    const users = response.data.results.bindings.map(b => ({
+      id: b.user.value.split('/').pop(),
+      username: b.username?.value || '',
+      email: b.email?.value || '',
+      age: b.age?.value || ''
+    }));
+
+    console.log(`✅ ${users.length} utilisateurs récupérés:`, users);
+    res.json({ success: true, users, count: users.length });
+  } catch (err) {
+    console.error("❌ Get users error:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================
+// GET - Récupérer tous les programmes depuis Fuseki
+// ============================================
+router.get("/programs", async (req, res) => {
+  const query = `
+    PREFIX ontologie: <http://www.smarthealth-tracker.com/ontologie#>
+    PREFIX ex: <http://example.org/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT DISTINCT ?program ?name ?description ?duration ?assignedUser
+    WHERE {
+      ?program rdf:type ontologie:ProgrammeSante .
+      OPTIONAL { ?program ex:name ?name . }
+      OPTIONAL { ?program ex:description ?description . }
+      OPTIONAL { ?program ex:duration ?duration . }
+      OPTIONAL { ?program ontologie:SMedicale ?assignedUser . }
+    }
+    ORDER BY ?program
+  `;
+
+  try {
+    console.log("🔍 Exécution de la requête programmes...");
+    const response = await axios.get(`${FUSEKI_URL}/query`, {
+      params: { query },
+      headers: { Accept: "application/sparql-results+json" },
+    });
+
+    const programs = response.data.results.bindings.map(b => ({
+      id: b.program.value.split('/').pop(),
+      type: 'ProgrammeSante',
+      name: b.name?.value || 'Programme sans nom',
+      description: b.description?.value || '',
+      duration: b.duration?.value || '',
+      relations: {
+        assignedTo: b.assignedUser?.value.split('/').pop() || null
+      }
+    }));
+
+    console.log(`✅ ${programs.length} programmes récupérés`);
+    res.json({ success: true, programs, count: programs.length });
+  } catch (err) {
+    console.error("❌ Get programs error:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================
+// POST - Créer un utilisateur
+// ============================================
+router.post("/users/create", async (req, res) => {
+  const { username, email, age } = req.body;
+
+  if (!username) {
+    return res.status(400).json({
+      success: false,
+      message: "Le nom d'utilisateur est requis"
+    });
+  }
+
+  const userId = `user_${Date.now()}`;
+
+  try {
+    const insertQuery = `
+      PREFIX ontologie: <http://www.smarthealth-tracker.com/ontologie#>
+      PREFIX ex: <http://example.org/>
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      
+      INSERT DATA {
+        ex:${userId} rdf:type ontologie:Utilisateur .
+        ex:${userId} ex:username "${username}" .
+        ${email ? `ex:${userId} ex:email "${email}" .` : ''}
+        ${age ? `ex:${userId} ex:age ${age} .` : ''}
+      }
+    `;
+
+    await axios.post(`${FUSEKI_URL}/update`, insertQuery, {
+      headers: { "Content-Type": "application/sparql-update" },
+    });
+
+    console.log(`✅ Utilisateur créé: ${userId}`);
+    res.status(201).json({
+      success: true,
+      message: "Utilisateur créé avec succès",
+      user: { id: userId, username, email, age }
+    });
+  } catch (err) {
+    console.error("❌ Create user error:", err.message);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+// ============================================
+// POST - Créer un programme
+// ============================================
+router.post("/programs/create", async (req, res) => {
+  const { name, description, duration, assignedToUserId } = req.body;
+
+  if (!name) {
+    return res.status(400).json({
+      success: false,
+      message: "Le nom du programme est requis"
+    });
+  }
+
+  const programId = `program_${Date.now()}`;
+
+  try {
+    const insertQuery = `
+      PREFIX ontologie: <http://www.smarthealth-tracker.com/ontologie#>
+      PREFIX ex: <http://example.org/>
+      PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      
+      INSERT DATA {
+        ex:${programId} rdf:type ontologie:ProgrammeSante .
+        ex:${programId} ex:name "${name}" .
+        ${description ? `ex:${programId} ex:description "${description}" .` : ''}
+        ${duration ? `ex:${programId} ex:duration "${duration}" .` : ''}
+        ex:${programId} ex:createdAt "${new Date().toISOString()}"^^xsd:dateTime .
+        ${assignedToUserId ? `ex:${programId} ontologie:SMedicale ex:${assignedToUserId} .` : ''}
+      }
+    `;
+
+    await axios.post(`${FUSEKI_URL}/update`, insertQuery, {
+      headers: { "Content-Type": "application/sparql-update" },
+    });
+
+    console.log(`✅ Programme créé: ${programId}`);
+    res.status(201).json({
+      success: true,
+      message: "Programme créé avec succès",
+      program: { id: programId, name, description, duration }
+    });
+  } catch (err) {
+    console.error("❌ Create program error:", err.message);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+// ============================================
+// PUT - Mettre à jour un programme
+// ============================================
+router.put("/programs/:id", async (req, res) => {
+  const { id } = req.params;
+  const { name, description, duration, assignedToUserId } = req.body;
+
+  try {
+    const deleteQuery = `
+      PREFIX ontologie: <http://www.smarthealth-tracker.com/ontologie#>
+      PREFIX ex: <http://example.org/>
+      DELETE {
+        ex:${id} ex:name ?oldName .
+        ex:${id} ex:description ?oldDesc .
+        ex:${id} ex:duration ?oldDur .
+        ex:${id} ontologie:SMedicale ?oldUser .
+      }
+      WHERE {
+        OPTIONAL { ex:${id} ex:name ?oldName . }
+        OPTIONAL { ex:${id} ex:description ?oldDesc . }
+        OPTIONAL { ex:${id} ex:duration ?oldDur . }
+        OPTIONAL { ex:${id} ontologie:SMedicale ?oldUser . }
+      }
+    `;
+
+    await axios.post(`${FUSEKI_URL}/update`, deleteQuery, {
+      headers: { "Content-Type": "application/sparql-update" },
+    });
+
+    const insertQuery = `
+      PREFIX ontologie: <http://www.smarthealth-tracker.com/ontologie#>
+      PREFIX ex: <http://example.org/>
+      INSERT DATA {
+        ${name ? `ex:${id} ex:name "${name}" .` : ''}
+        ${description ? `ex:${id} ex:description "${description}" .` : ''}
+        ${duration ? `ex:${id} ex:duration "${duration}" .` : ''}
+        ${assignedToUserId ? `ex:${id} ontologie:SMedicale ex:${assignedToUserId} .` : ''}
+      }
+    `;
+
+    await axios.post(`${FUSEKI_URL}/update`, insertQuery, {
+      headers: { "Content-Type": "application/sparql-update" },
+    });
+
+    console.log(`✅ Programme mis à jour: ${id}`);
+    res.json({
+      success: true,
+      message: "Programme mis à jour avec succès"
+    });
+  } catch (err) {
+    console.error("❌ Update program error:", err.message);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+// ============================================
+// DELETE - Supprimer un programme
+// ============================================
+router.delete("/programs/:id", async (req, res) => {
+  const { id } = req.params;
+
+  const deleteQuery = `
+    PREFIX ex: <http://example.org/>
+    DELETE WHERE {
+      ex:${id} ?p ?o .
+    }
+  `;
+
+  try {
+    await axios.post(`${FUSEKI_URL}/update`, deleteQuery, {
+      headers: { "Content-Type": "application/sparql-update" },
+    });
+
+    console.log(`✅ Programme supprimé: ${id}`);
+    res.json({
+      success: true,
+      message: "Programme supprimé avec succès"
+    });
+  } catch (err) {
+    console.error("❌ Delete program error:", err.message);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+// ============================================
+// GET - Obtenir des suggestions de requêtes
 // ============================================
 router.get("/suggestions", (req, res) => {
   res.json({
