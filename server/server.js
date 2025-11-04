@@ -6,6 +6,8 @@ const authRoutes = require("./routes/auth");
 const mesureRoutes = require('./routes/mesureRoutes');
 const scoreSanteRoutes = require('./routes/scoreSanteRoutes');
 const sparqlRoutes = require('./routes/sparqlRoutes');
+const etatSanteRoutes = require("./routes/etatSanteRoutes");
+const objectifRoutes = require("./routes/objectifRoutes");
 
 const app = express();
 
@@ -19,6 +21,8 @@ app.use("/api/auth", authRoutes);
 app.use('/api/mesures', mesureRoutes);
 app.use('/api/scores-sante', scoreSanteRoutes);
 app.use('/api/sparql', sparqlRoutes);
+app.use("/api/etat-sante", etatSanteRoutes);
+app.use("/api/objectifs", objectifRoutes);
 
 // Route de test
 app.get('/api/health', (req, res) => {

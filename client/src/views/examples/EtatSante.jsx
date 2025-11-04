@@ -16,6 +16,7 @@ import {
 } from "reactstrap";
 import { toast } from "react-toastify";
 import UserHeader from "components/Headers/UserHeader.js";
+import AIBox from "components/AIBOX";
 
 const API_URL = "http://localhost:5000/api/etat-sante";
 const CATEGORY_OPTIONS = [
@@ -280,7 +281,14 @@ const EtatSante = () => {
   return (
     <>
       <UserHeader />
+       
       <Container className="mt--7" fluid>
+        <Row>
+          <Col md="12">
+            {/* ✅ Assistant AI intégré */}
+            <AIBox entity="etat_sante" />
+          </Col>
+        </Row>
         <Row>
           <Col xl="7">
             <Card className="shadow">

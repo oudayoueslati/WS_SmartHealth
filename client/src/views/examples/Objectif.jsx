@@ -15,6 +15,7 @@ import {
 } from "reactstrap";
 import { toast } from "react-toastify";
 import UserHeader from "components/Headers/UserHeader.js";
+import AIBox from "components/AIBOX";
 
 const toInputDateTime = (iso) => {
   if (!iso) return "";
@@ -259,6 +260,11 @@ const Objectif = () => {
     <>
       <UserHeader />
       <Container className="mt--7" fluid>
+          <Row>
+          <Col md="12">
+            <AIBox entity="objectif" />
+          </Col>
+        </Row>
         <Row>
           <Col xl="7">
             <Card className="shadow">
