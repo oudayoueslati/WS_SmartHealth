@@ -31,7 +31,6 @@ import {
 import Header from "components/Headers/Header.js";
 
 const API_URL = "http://localhost:5000/api/ai-sparql";
-const PROGRAMS_URL = "http://localhost:5000/api/health-programs";
 
 const AISparql = () => {
   // États pour l'AI
@@ -108,8 +107,9 @@ const AISparql = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get(`${PROGRAMS_URL}/relations/users`);
+      const response = await axios.get(`${API_URL}/users`); 
       if (response.data.success) {
+        console.log(`✅ ${response.data.count} utilisateurs chargés dans le frontend`);
         setUsers(response.data.users);
       }
     } catch (err) {
@@ -119,8 +119,9 @@ const AISparql = () => {
 
   const fetchPrograms = async () => {
     try {
-      const response = await axios.get(`${PROGRAMS_URL}/all`);
+      const response = await axios.get(`${API_URL}/programs`);
       if (response.data.success) {
+        console.log(`✅ ${response.data.count} programmes chargés dans le frontend`);
         setPrograms(response.data.programs);
       }
     } catch (err) {
@@ -141,13 +142,8 @@ const AISparql = () => {
 
   const fetchRelationsData = async () => {
     try {
-      const [objectifsRes, servicesRes] = await Promise.all([
-        axios.get(`${PROGRAMS_URL}/relations/objectifs`),
-        axios.get(`${PROGRAMS_URL}/relations/services`)
-      ]);
-
-      if (objectifsRes.data.success) setObjectifs(objectifsRes.data.objectifs);
-      if (servicesRes.data.success) setServices(servicesRes.data.services);
+      setObjectifs([]);
+      setServices([]);
     } catch (err) {
       console.error("Failed to fetch relations data:", err);
     }
@@ -172,6 +168,7 @@ const AISparql = () => {
         
         if (response.data.queryType === 'UPDATE') {
           fetchPrograms();
+          fetchUsers();
         }
       }
     } catch (err) {
@@ -198,6 +195,7 @@ const AISparql = () => {
         setResult(response.data);
         setSuccess(`✅ Action "${smartAction.action}" exécutée avec succès !`);
         fetchPrograms();
+        fetchUsers();
       }
     } catch (err) {
       setError(err.response?.data?.error || "Erreur lors de l'action");
@@ -321,11 +319,11 @@ const AISparql = () => {
 
     try {
       if (editMode) {
-        await axios.put(`${PROGRAMS_URL}/${currentProgram.id}`, formData);
+        await axios.put(`${API_URL}/programs/${currentProgram.id}`, formData);
         setSuccess("Programme mis à jour avec succès !");
       } else {
         const user = JSON.parse(localStorage.getItem("user") || "{}");
-        await axios.post(`${PROGRAMS_URL}/create`, {
+        await axios.post(`${API_URL}/programs/create`, {
           ...formData,
           userId: user.username || "admin",
         });
@@ -348,7 +346,7 @@ const AISparql = () => {
     }
 
     try {
-      await axios.delete(`${PROGRAMS_URL}/${id}`);
+      await axios.delete(`${API_URL}/programs/${id}`);
       setSuccess("Programme supprimé avec succès !");
       fetchPrograms();
       setTimeout(() => setSuccess(""), 3000);
@@ -391,11 +389,20 @@ const AISparql = () => {
             <Card className="shadow">
               <CardBody className="py-3">
                 <Row className="align-items-center">
-                  <Col xs="6">
+                  <Col xs="4">
                     <span className="text-muted mr-2">API Status :</span>
                     {getAPIStatusBadge()}
                   </Col>
-                  <Col xs="6" className="text-right">
+                  <Col xs="4" className="text-center">
+                    <Badge color="primary">
+                      👥 {users.length} utilisateurs
+                    </Badge>
+                    {" "}
+                    <Badge color="info">
+                      📋 {programs.length} programmes
+                    </Badge>
+                  </Col>
+                  <Col xs="4" className="text-right">
                     {apiConfig?.ontologyLoaded && (
                       <Badge color="info">
                         📚 {apiConfig.classesCount} classes, {apiConfig.propertiesCount} propriétés
@@ -512,8 +519,22 @@ const AISparql = () => {
                             </div>
 
                             <UncontrolledCollapse toggler="#queryToggle">
-                              <div className="bg-dark text-white p-3 rounded mb-3">
-                                <pre className="mb-0" style={{ whiteSpace: 'pre-wrap' }}>
+                              <div style={{
+                                backgroundColor: '#1e293b',
+                                color: '#22d3ee',
+                                padding: '20px',
+                                borderRadius: '8px',
+                                marginBottom: '20px',
+                                border: '2px solid #0ea5e9',
+                                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                              }}>
+                                <pre className="mb-0" style={{ 
+                                  whiteSpace: 'pre-wrap',
+                                  color: '#22d3ee',
+                                  fontSize: '14px',
+                                  lineHeight: '1.6',
+                                  fontFamily: 'Monaco, Consolas, monospace'
+                                }}>
                                   {result.generatedQuery}
                                 </pre>
                               </div>
@@ -543,8 +564,6 @@ const AISparql = () => {
                             <option value="update_assignment">Modifier assignation</option>
                             <option value="remove_assignment">Retirer assignation</option>
                             <option value="find_unassigned_programs">Programmes non assignés</option>
-                            <option value="create_habit_log">Créer log d'habitude</option>
-                            <option value="find_user_habits">Habitudes d'un utilisateur</option>
                           </Input>
                         </FormGroup>
 
@@ -582,7 +601,7 @@ const AISparql = () => {
                                 <option value="">-- Sélectionner --</option>
                                 {users.map(u => (
                                   <option key={u.id} value={u.id}>
-                                    {u.username}
+                                    {u.username || u.id}
                                   </option>
                                 ))}
                               </Input>
@@ -631,7 +650,7 @@ const AISparql = () => {
                                 <option value="">-- Sélectionner --</option>
                                 {users.map(u => (
                                   <option key={u.id} value={u.id}>
-                                    {u.username}
+                                    {u.username || u.id}
                                   </option>
                                 ))}
                               </Input>
@@ -654,7 +673,7 @@ const AISparql = () => {
                               <option value="">-- Sélectionner --</option>
                               {users.map(u => (
                                 <option key={u.id} value={u.id}>
-                                  {u.username}
+                                  {u.username || u.id}
                                 </option>
                               ))}
                             </Input>
@@ -698,28 +717,28 @@ const AISparql = () => {
                             onClick={() => setFilterType("All")}
                             size="sm"
                           >
-                            Tous
+                            Tous ({programs.length})
                           </Button>
                           <Button
                             color={filterType === "Activite" ? "primary" : "secondary"}
                             onClick={() => setFilterType("Activite")}
                             size="sm"
                           >
-                            Activité
+                            Activité ({programs.filter(p => p.type === "ProgrammeActivite").length})
                           </Button>
                           <Button
                             color={filterType === "Sommeil" ? "info" : "secondary"}
                             onClick={() => setFilterType("Sommeil")}
                             size="sm"
                           >
-                            Sommeil
+                            Sommeil ({programs.filter(p => p.type === "ProgrammeSommeil").length})
                           </Button>
                           <Button
                             color={filterType === "Nutrition" ? "success" : "secondary"}
                             onClick={() => setFilterType("Nutrition")}
                             size="sm"
                           >
-                            Nutrition
+                            Nutrition ({programs.filter(p => p.type === "ProgrammeNutrition").length})
                           </Button>
                         </div>
                       </Col>
@@ -886,7 +905,6 @@ const AISparql = () => {
                     />
                   </FormGroup>
                 </Col>
-                
               </Row>
 
               <hr />
@@ -916,7 +934,7 @@ const AISparql = () => {
                           <option value="">-- Sélectionner --</option>
                           {users.map(user => (
                             <option key={user.id} value={user.id}>
-                              {user.username} ({user.email})
+                              {user.username || user.id} {user.email && `(${user.email})`}
                             </option>
                           ))}
                         </Input>
@@ -963,7 +981,6 @@ const AISparql = () => {
                         </Input>
                       </FormGroup>
                     </Col>
-                    
                   </Row>
 
                   <FormGroup>
