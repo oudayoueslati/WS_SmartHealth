@@ -30,6 +30,13 @@ import MedicalAssistant from "views/MedicalAssistant.jsx";
 import AdminDashboard from "views/AdminDashboard.jsx";
 import AdminPayments from "views/AdminPayments.jsx";
 import AdminServices from "views/AdminServices.jsx";
+import Habitudes from "components/Habitude/HabitudeList.jsx";
+import EvenementForm from "views/examples/Evenement.jsx"; 
+import ArticleForm from "views/examples/Article.jsx"; 
+import Aichatsaif from "components/Habitude//SaifAIChat.jsx"
+import HabitudeLogs from "components/HabitudeLogs/HabitudeLogList";
+
+
 
 var routes = [
   {
@@ -37,6 +44,43 @@ var routes = [
     name: "Dashboard",
     icon: "ni ni-tv-2 text-primary",
     component: <Index />,
+    layout: "/admin",
+  },
+   {
+    path: "/evenement",
+    name: "Events",
+    icon: "ni ni-pin-3 text-orange",
+    component: <EvenementForm />,
+    layout: "/admin",
+  },
+   {
+    path: "/article",
+    name: "Articles",
+    icon: "ni ni-pin-3 text-orange",
+    component: <ArticleForm />,
+    layout: "/admin",
+  },
+
+  {
+    path: "/habitudes",
+    name: "Habitude",
+    icon: "ni ni-planet text-blue",
+    component: <Habitudes />,
+    layout: "/admin",
+  },
+  {
+    path: "/habitude-logs",
+    name: "Habitude-Logs",
+    icon: "ni ni-bullet-list-67 text-red",
+    component: <HabitudeLogs />,
+    layout: "/admin",
+  },
+  
+    {
+    path: "/aichat",
+    name: "Aichatsaif",
+    icon: "ni ni-pin-3 text-orange",
+    component: <Aichatsaif />,
     layout: "/admin",
   },
   {
