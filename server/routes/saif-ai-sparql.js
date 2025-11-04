@@ -2,674 +2,350 @@ const express = require("express");
 const axios = require("axios");
 const router = express.Router();
 
-const FUSEKI_URL = process.env.FUSEKI_URL || "http://localhost:3030/usersDB";
+// Configuration
+const FUSEKI_URL = "http://localhost:3030";
+const DATASET_NAME = "SmartHealth";
+const FUSEKI_ENDPOINT = `${FUSEKI_URL}/${DATASET_NAME}`;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-// ✅ LOGIQUE SAIF - Système de Compréhension Contextuelle Avancée
-class SaifAISparqlLogic {
-  constructor() {
-    this.contextHistory = [];
-    this.userPreferences = new Map();
-    this.domainKnowledge = this.loadDomainKnowledge();
-  }
+console.log(`🔧 Configuration Fuseki: ${FUSEKI_ENDPOINT}`);
 
-  // 📚 Connaissances métier spécifiques Santé
-  loadDomainKnowledge() {
-    return {
-      habitTypes: {
-        'sommeil': { 
-          class: 'Sommeil', 
-          properties: ['aNombreHeuresSommeil', 'aQualitéSommeil'],
-          metrics: { optimal: '7-9 heures', unit: 'heures' }
-        },
-        'nutrition': { 
-          class: 'Nutrition', 
-          properties: ['aCaloriesConsommées', 'aMacronutriments'],
-          metrics: { optimal: '2000-2500 kcal/jour', unit: 'calories' }
-        },
-        'activité': { 
-          class: 'ActivitéPhysique', 
-          properties: ['aPasEffectués', 'aIntensité'],
-          metrics: { optimal: '10000 pas/jour', unit: 'pas' }
-        },
-        'stress': { 
-          class: 'Stress', 
-          properties: ['aNiveauStress', 'aFacteursStress'],
-          metrics: { optimal: 'niveau 1-3', unit: 'niveau' }
-        }
+// Test de connexion Fuseki
+async function testFusekiConnection() {
+  try {
+    const query = "SELECT * WHERE { ?s ?p ?o } LIMIT 1";
+    const params = new URLSearchParams();
+    params.append('query', query);
+    
+    const response = await axios.post(`${FUSEKI_ENDPOINT}/query`, params, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/sparql-results+json'
       },
-      relationships: {
-        'a': 'rdf:type',
-        'a pour': 'ontologie:aHabitude',
-        'lié à': 'ontologie:LogHabitude',
-        'appartient à': 'ontologie:SMedicale'
-      },
-      commonPatterns: {
-        createHabit: "Créer une habitude [type] avec [propriétés] pour [utilisateur]",
-        findHabits: "Trouver les habitudes [filtres] de [utilisateur]",
-        updateHabit: "Modifier l'habitude [id] avec [nouvelles valeurs]",
-        analyzeTrends: "Analyser les tendances [période] pour [utilisateur]"
-      }
-    };
-  }
-
-  // 🧠 Analyse Sémantique Avancée
-  analyzeSemanticIntent(userPrompt, context = {}) {
-    const intent = {
-      action: this.detectAction(userPrompt),
-      entity: this.extractEntity(userPrompt),
-      filters: this.extractFilters(userPrompt),
-      relationships: this.extractRelationships(userPrompt),
-      temporal: this.extractTemporalContext(userPrompt),
-      userContext: context.userId ? `ex:${context.userId}` : null
-    };
-
-    this.contextHistory.push({
-      timestamp: new Date().toISOString(),
-      prompt: userPrompt,
-      intent: intent
+      timeout: 8000
     });
 
-    return intent;
-  }
-
-  // 🎯 Détection d'Action Intelligente
-  detectAction(prompt) {
-    const promptLower = prompt.toLowerCase();
+    console.log('✅ Connexion Fuseki RÉUSSIE !');
+    return true;
     
-    const actionPatterns = {
-      create: ['créer', 'ajouter', 'nouveau', 'nouvelle', 'débuter'],
-      read: ['trouver', 'chercher', 'voir', 'afficher', 'lister', 'montrer'],
-      update: ['modifier', 'changer', 'mettre à jour', 'éditer', 'corriger'],
-      delete: ['supprimer', 'effacer', 'retirer', 'enlever'],
-      analyze: ['analyser', 'statistiques', 'tendances', 'rapport', 'performance']
-    };
-
-    for (const [action, patterns] of Object.entries(actionPatterns)) {
-      if (patterns.some(pattern => promptLower.includes(pattern))) {
-        return action;
-      }
-    }
-
-    return 'read';
-  }
-
-  // 🔍 Extraction d'Entités Contextuelles
-  extractEntity(prompt) {
-    const promptLower = prompt.toLowerCase();
-    
-    for (const [key, value] of Object.entries(this.domainKnowledge.habitTypes)) {
-      if (promptLower.includes(key)) {
-        return {
-          type: value.class,
-          category: key,
-          properties: value.properties
-        };
-      }
-    }
-
-    // Détection intelligente basée sur le contexte
-    if (promptLower.includes('calories') || promptLower.includes('manger') || promptLower.includes('repas')) {
-      return { type: 'Nutrition', category: 'nutrition', properties: ['aCaloriesConsommées'] };
-    }
-    if (promptLower.includes('sommeil') || promptLower.includes('dormir') || promptLower.includes('nuit')) {
-      return { type: 'Sommeil', category: 'sommeil', properties: ['aNombreHeuresSommeil'] };
-    }
-    if (promptLower.includes('sport') || promptLower.includes('exercice') || promptLower.includes('pas')) {
-      return { type: 'ActivitéPhysique', category: 'activité', properties: ['aPasEffectués'] };
-    }
-    if (promptLower.includes('stress') || promptLower.includes('détente') || promptLower.includes('relax')) {
-      return { type: 'Stress', category: 'stress', properties: ['aNiveauStress'] };
-    }
-
-    return { type: 'Habitude', category: 'général', properties: [] };
-  }
-
-  // 🎚️ Extraction de Filtres Intelligents
-  extractFilters(prompt) {
-    const filters = {};
-    const promptLower = prompt.toLowerCase();
-
-    // Filtres numériques
-    const numberMatches = prompt.match(/(\d+)\s*(calories?|heures?|pas|niveau)/gi) || [];
-    numberMatches.forEach(match => {
-      const [value, unit] = match.split(/\s+/);
-      const numValue = parseInt(value);
-      
-      switch(unit.toLowerCase()) {
-        case 'calories':
-        case 'calorie':
-          filters.calories = numValue;
-          break;
-        case 'heures':
-        case 'heure':
-          filters.heures = parseFloat(value);
-          break;
-        case 'pas':
-          filters.pas = numValue;
-          break;
-        case 'niveau':
-          filters.niveau = numValue;
-          break;
-      }
-    });
-
-    // Filtres de plage
-    const rangeMatch = prompt.match(/(entre|de)\s*(\d+)\s*(et|à)\s*(\d+)/i);
-    if (rangeMatch) {
-      const min = parseInt(rangeMatch[2]);
-      const max = parseInt(rangeMatch[4]);
-      
-      if (promptLower.includes('calories')) {
-        filters.caloriesMin = min;
-        filters.caloriesMax = max;
-      } else if (promptLower.includes('heures')) {
-        filters.heuresMin = min;
-        filters.heuresMax = max;
-      } else if (promptLower.includes('pas')) {
-        filters.pasMin = min;
-        filters.pasMax = max;
-      }
-    }
-
-    // Filtres temporels
-    if (promptLower.includes('aujourd\'hui') || promptLower.includes('ce jour')) {
-      filters.date = 'today';
-    } else if (promptLower.includes('hier')) {
-      filters.date = 'yesterday';
-    } else if (promptLower.includes('semaine')) {
-      filters.period = 'week';
-    } else if (promptLower.includes('mois')) {
-      filters.period = 'month';
-    }
-
-    return filters;
-  }
-
-  // 🔗 Extraction de Relations
-  extractRelationships(prompt) {
-    const relationships = [];
-    const promptLower = prompt.toLowerCase();
-
-    for (const [natural, technical] of Object.entries(this.domainKnowledge.relationships)) {
-      if (promptLower.includes(natural)) {
-        relationships.push({
-          natural: natural,
-          technical: technical,
-          context: this.inferRelationshipContext(promptLower, natural)
-        });
-      }
-    }
-
-    return relationships;
-  }
-
-  // 🕒 Contexte Temporel
-  extractTemporalContext(prompt) {
-    const promptLower = prompt.toLowerCase();
-    
-    if (promptLower.includes('récent') || promptLower.includes('dernier')) {
-      return { type: 'recent', limit: 10 };
-    }
-    if (promptLower.includes('ancien') || promptLower.includes('premier')) {
-      return { type: 'oldest', limit: 10 };
-    }
-
-    return { type: 'all', limit: 100 };
-  }
-
-  // 🧩 Inférence de Contexte de Relation
-  inferRelationshipContext(prompt, relationship) {
-    const context = {};
-    const words = prompt.split(' ');
-    const relationIndex = words.findIndex(word => word.includes(relationship));
-    
-    if (relationIndex > 0) {
-      context.subject = words.slice(0, relationIndex).join(' ');
-    }
-    if (relationIndex < words.length - 1) {
-      context.object = words.slice(relationIndex + 1).join(' ');
-    }
-
-    return context;
-  }
-
-  // 🎪 Génération de SPARQL avec Intelligence Contextuelle
-  generateContextualSparql(intent) {
-    const prefixes = `
-PREFIX ontologie: <http://www.smarthealth-tracker.com/ontologie#>
-PREFIX ex: <http://example.org/>
-PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-    `.trim();
-
-    let sparqlQuery = '';
-
-    switch (intent.action) {
-      case 'create':
-        sparqlQuery = this.generateCreateQuery(intent);
-        break;
-      case 'read':
-        sparqlQuery = this.generateReadQuery(intent);
-        break;
-      case 'update':
-        sparqlQuery = this.generateUpdateQuery(intent);
-        break;
-      case 'delete':
-        sparqlQuery = this.generateDeleteQuery(intent);
-        break;
-      case 'analyze':
-        sparqlQuery = this.generateAnalyzeQuery(intent);
-        break;
-      default:
-        sparqlQuery = this.generateReadQuery(intent);
-    }
-
-    return `${prefixes}\n\n${sparqlQuery}`;
-  }
-
-  // ➕ Génération de Requête CREATE
-  generateCreateQuery(intent) {
-    const habitId = `Habitude_${Date.now()}`;
-    let query = `INSERT DATA {\n  ex:${habitId} a ontologie:${intent.entity.type} ;\n`;
-
-    // Propriétés de base
-    if (intent.filters.titre) {
-      query += `    ontologie:aTitle "${intent.filters.titre}" ;\n`;
-    }
-    if (intent.filters.description) {
-      query += `    ontologie:aDescription "${intent.filters.description}" ;\n`;
-    }
-
-    // Propriétés spécifiques
-    if (intent.entity.category === 'nutrition' && intent.filters.calories) {
-      query += `    ontologie:aCaloriesConsommées "${intent.filters.calories}"^^xsd:int ;\n`;
-    }
-    if (intent.entity.category === 'sommeil' && intent.filters.heures) {
-      query += `    ontologie:aNombreHeuresSommeil "${intent.filters.heures}"^^xsd:decimal ;\n`;
-    }
-    if (intent.entity.category === 'activité' && intent.filters.pas) {
-      query += `    ontologie:aPasEffectués "${intent.filters.pas}"^^xsd:int ;\n`;
-    }
-    if (intent.entity.category === 'stress' && intent.filters.niveau) {
-      query += `    ontologie:aNiveauStress "${intent.filters.niveau}"^^xsd:int ;\n`;
-    }
-
-    // Relation utilisateur
-    if (intent.userContext) {
-      query += `    ontologie:aHabitude ${intent.userContext} .\n`;
-    } else {
-      query = query.slice(0, -2) + ' .\n';
-    }
-
-    query += '}';
-
-    return query;
-  }
-
-  // 🔍 Génération de Requête READ
-  generateReadQuery(intent) {
-    let query = 'SELECT ?habitude ?type ?titre ?description';
-
-    // Ajouter les propriétés spécifiques au SELECT
-    if (intent.entity.category === 'nutrition') {
-      query += ' ?calories';
-    }
-    if (intent.entity.category === 'sommeil') {
-      query += ' ?heures';
-    }
-    if (intent.entity.category === 'activité') {
-      query += ' ?pas';
-    }
-    if (intent.entity.category === 'stress') {
-      query += ' ?niveau';
-    }
-
-    query += '\nWHERE {\n  ?habitude a ?type ;\n           ontologie:aTitle ?titre ;\n           ontologie:aDescription ?description .\n';
-
-    // Filtre par type
-    if (intent.entity.type !== 'Habitude') {
-      query += `  ?habitude a ontologie:${intent.entity.type} .\n`;
-    }
-
-    // Filtres utilisateur
-    if (intent.userContext) {
-      query += `  ${intent.userContext} ontologie:aHabitude ?habitude .\n`;
-    }
-
-    // Filtres numériques
-    if (intent.entity.category === 'nutrition') {
-      query += '  OPTIONAL { ?habitude ontologie:aCaloriesConsommées ?calories . }\n';
-      if (intent.filters.caloriesMin) {
-        query += `  FILTER (?calories >= ${intent.filters.caloriesMin})\n`;
-      }
-      if (intent.filters.caloriesMax) {
-        query += `  FILTER (?calories <= ${intent.filters.caloriesMax})\n`;
-      }
-    }
-
-    if (intent.entity.category === 'sommeil') {
-      query += '  OPTIONAL { ?habitude ontologie:aNombreHeuresSommeil ?heures . }\n';
-      if (intent.filters.heuresMin) {
-        query += `  FILTER (?heures >= ${intent.filters.heuresMin})\n`;
-      }
-      if (intent.filters.heuresMax) {
-        query += `  FILTER (?heures <= ${intent.filters.heuresMax})\n`;
-      }
-    }
-
-    if (intent.entity.category === 'activité') {
-      query += '  OPTIONAL { ?habitude ontologie:aPasEffectués ?pas . }\n';
-      if (intent.filters.pasMin) {
-        query += `  FILTER (?pas >= ${intent.filters.pasMin})\n`;
-      }
-      if (intent.filters.pasMax) {
-        query += `  FILTER (?pas <= ${intent.filters.pasMax})\n`;
-      }
-    }
-
-    // Limite contextuelle
-    if (intent.temporal.limit) {
-      query += `}\nLIMIT ${intent.temporal.limit}`;
-    } else {
-      query += '}';
-    }
-
-    return query;
-  }
-
-  // ✏️ Génération de Requête UPDATE
-  generateUpdateQuery(intent) {
-    return `# Mise à jour intelligente pour ${intent.entity.type}\n# Logique Saif AI à implémenter`;
-  }
-
-  // 🗑️ Génération de Requête DELETE
-  generateDeleteQuery(intent) {
-    return `DELETE WHERE {\n  ?s ?p ?o .\n  FILTER(STRSTARTS(STR(?s), "http://www.smarthealth-tracker.com/ontologie#${intent.entity.type}"))\n}`;
-  }
-
-  // 📊 Génération de Requête ANALYZE
-  generateAnalyzeQuery(intent) {
-    let query = 'SELECT ?type (COUNT(?habitude) as ?count)';
-
-    if (intent.entity.category === 'nutrition') {
-      query += ' (AVG(?calories) as ?moyenneCalories)';
-    }
-    if (intent.entity.category === 'sommeil') {
-      query += ' (AVG(?heures) as ?moyenneHeures)';
-    }
-    if (intent.entity.category === 'activité') {
-      query += ' (AVG(?pas) as ?moyennePas)';
-    }
-
-    query += '\nWHERE {\n  ?habitude a ?type ;\n           ontologie:aTitle ?titre .\n';
-
-    if (intent.entity.category === 'nutrition') {
-      query += '  OPTIONAL { ?habitude ontologie:aCaloriesConsommées ?calories . }\n';
-    }
-    if (intent.entity.category === 'sommeil') {
-      query += '  OPTIONAL { ?habitude ontologie:aNombreHeuresSommeil ?heures . }\n';
-    }
-    if (intent.entity.category === 'activité') {
-      query += '  OPTIONAL { ?habitude ontologie:aPasEffectués ?pas . }\n';
-    }
-
-    if (intent.userContext) {
-      query += `  ${intent.userContext} ontologie:aHabitude ?habitude .\n`;
-    }
-
-    query += '}\nGROUP BY ?type\nORDER BY DESC(?count)';
-
-    return query;
+  } catch (error) {
+    console.error('❌ Erreur connexion Fuseki:', error.message);
+    return false;
   }
 }
 
-// 🚀 Initialisation de la Logique Saif
+// Exécution SPARQL
+async function executeSparqlQuery(sparqlQuery, queryType = 'SELECT') {
+  try {
+    const url = queryType === 'SELECT' || queryType === 'ASK' 
+      ? `${FUSEKI_ENDPOINT}/query` 
+      : `${FUSEKI_ENDPOINT}/update`;
+
+    const config = {
+      headers: {
+        'Accept': 'application/sparql-results+json'
+      },
+      timeout: 10000
+    };
+
+    let response;
+
+    if (queryType === 'SELECT' || queryType === 'ASK') {
+      const params = new URLSearchParams();
+      params.append('query', sparqlQuery);
+      config.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      response = await axios.post(url, params, config);
+    } else {
+      config.headers['Content-Type'] = 'application/sparql-update';
+      response = await axios.post(url, sparqlQuery, config);
+    }
+
+    console.log(`✅ Requête exécutée - ${response.data.results?.bindings?.length || 0} résultats`);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Erreur SPARQL:', error.message);
+    throw error;
+  }
+}
+
+// Logique SAIF
+class SaifAISparqlLogic {
+  constructor() {
+    this.contextHistory = [];
+  }
+
+  analyzeSemanticIntent(userPrompt) {
+    const intent = {
+      action: this.detectAction(userPrompt),
+      entity: this.extractEntity(userPrompt)
+    };
+
+    this.contextHistory.push({ timestamp: new Date().toISOString(), prompt: userPrompt, intent: intent });
+    return intent;
+  }
+
+  detectAction(prompt) {
+    const promptLower = prompt.toLowerCase();
+    if (promptLower.includes('créer') || promptLower.includes('ajouter')) return 'create';
+    if (promptLower.includes('supprimer') || promptLower.includes('effacer')) return 'delete';
+    if (promptLower.includes('modifier') || promptLower.includes('changer')) return 'update';
+    return 'read';
+  }
+
+  extractEntity(prompt) {
+    const promptLower = prompt.toLowerCase();
+    if (promptLower.includes('nutrition') || promptLower.includes('calories') || promptLower.includes('manger') || promptLower.includes('repas')) 
+      return { type: 'Nutrition', category: 'nutrition' };
+    if (promptLower.includes('sommeil') || promptLower.includes('dormir') || promptLower.includes('nuit')) 
+      return { type: 'Sommeil', category: 'sommeil' };
+    if (promptLower.includes('activité') || promptLower.includes('sport') || promptLower.includes('exercice') || promptLower.includes('course') || promptLower.includes('pas')) 
+      return { type: 'ActivitéPhysique', category: 'activité' };
+    if (promptLower.includes('stress') || promptLower.includes('anxiété')) 
+      return { type: 'Stress', category: 'stress' };
+    return { type: 'Habitude', category: 'général' };
+  }
+
+  generateContextualSparql(intent) {
+    const baseQuery = `
+PREFIX ont: <http://www.smarthealth-tracker.com/ontologie#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?habitude ?type ?titre ?description ?calories ?heures ?pas ?niveau ?date
+WHERE {
+  ?habitude a ?type .
+  FILTER(STRSTARTS(STR(?type), "http://www.smarthealth-tracker.com/ontologie#"))
+  OPTIONAL { ?habitude ont:aTitle ?titre . }
+  OPTIONAL { ?habitude ont:aDescription ?description . }
+  OPTIONAL { ?habitude ont:aCaloriesConsommées ?calories . }
+  OPTIONAL { ?habitude ont:aNombreHeuresSommeil ?heures . }
+  OPTIONAL { ?habitude ont:aPasEffectués ?pas . }
+  OPTIONAL { ?habitude ont:aNiveauStress ?niveau . }
+  OPTIONAL { ?habitude ont:aDateLog ?date . }`;
+
+    if (intent.entity.type !== 'Habitude') {
+      return baseQuery + `
+  FILTER(?type = ont:${intent.entity.type})
+}
+ORDER BY DESC(?date) DESC(?habitude)
+LIMIT 50`;
+    }
+    
+    return baseQuery + `
+}
+ORDER BY DESC(?date) DESC(?habitude)
+LIMIT 50`;
+  }
+}
+
 const saifAI = new SaifAISparqlLogic();
 
-// ============================================
-// ROUTES SAIF AI SPARQL
-// ============================================
+// Formatage des résultats
+function formatResults(resultatExecution) {
+  if (!resultatExecution?.results?.bindings) return [];
+  
+  return resultatExecution.results.bindings.map(binding => {
+    const resultat = {};
+    Object.keys(binding).forEach(key => {
+      if (binding[key]?.value) {
+        let value = binding[key].value;
+        
+        // Nettoyer les URLs
+        if (typeof value === 'string') {
+          if (value.includes('#')) {
+            value = value.split('#').pop();
+          }
+          if (value.includes('http://')) {
+            const parts = value.split('/');
+            value = parts[parts.length - 1] || parts[parts.length - 2] || value;
+          }
+        }
+        
+        resultat[key] = value;
+      }
+    });
+    
+    // Titres et descriptions par défaut
+    const typeName = resultat.type ? resultat.type.replace('ont:', '') : 'Habitude';
+    
+    if (!resultat.titre || resultat.titre === 'undefined') {
+      if (resultat.calories) {
+        resultat.titre = `Nutrition - ${resultat.calories} calories`;
+      } else if (resultat.heures) {
+        resultat.titre = `Sommeil - ${resultat.heures} heures`;
+      } else if (resultat.pas) {
+        resultat.titre = `Activité - ${resultat.pas} pas`;
+      } else if (resultat.niveau) {
+        resultat.titre = `Stress - Niveau ${resultat.niveau}`;
+      } else {
+        resultat.titre = `${typeName}`;
+      }
+    }
+    
+    if (!resultat.description || resultat.description === 'undefined') {
+      if (resultat.calories) {
+        resultat.description = `Apport calorique de ${resultat.calories} calories`;
+      } else if (resultat.heures) {
+        resultat.description = `${resultat.heures} heures de sommeil`;
+      } else if (resultat.pas) {
+        resultat.description = `Activité physique de ${resultat.pas} pas`;
+      } else if (resultat.niveau) {
+        resultat.description = `Niveau de stress: ${resultat.niveau}`;
+      } else {
+        resultat.description = `${typeName} enregistrée`;
+      }
+    }
+    
+    // Nettoyer l'ID
+    if (resultat.habitude) {
+      resultat.habitude = resultat.habitude
+        .replace('ont:', '')
+        .replace('http://example.org/', '')
+        .replace('http://www.smarthealth-tracker.com/ontologie#', '');
+    }
+    
+    return resultat;
+  });
+}
 
-// ✅ 1. ROUTE PRINCIPALE SAIF - Compréhension Contextuelle
-router.post("/comprendre", async (req, res) => {
+// Données de simulation
+function getSimulationData(intent) {
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+  if (intent.entity.type === 'ActivitéPhysique') {
+    return [
+      {
+        habitude: "activite_1",
+        type: "ActivitéPhysique",
+        titre: "Course matinale",
+        description: "30 minutes de course au parc",
+        pas: "8500",
+        calories: "320",
+        date: today
+      },
+      {
+        habitude: "activite_2",
+        type: "ActivitéPhysique", 
+        titre: "Yoga du soir",
+        description: "Session de yoga relaxante",
+        pas: "1200",
+        calories: "180",
+        date: yesterday
+      }
+    ];
+  } else if (intent.entity.type === 'Nutrition') {
+    return [
+      {
+        habitude: "nutrition_1",
+        type: "Nutrition",
+        titre: "Petit déjeuner équilibré",
+        description: "Omelette, toast, smoothie",
+        calories: "450",
+        date: today
+      },
+      {
+        habitude: "nutrition_2",
+        type: "Nutrition",
+        titre: "Déjeuner protéiné",
+        description: "Poulet grillé, quinoa, légumes",
+        calories: "520",
+        date: yesterday
+      }
+    ];
+  } else if (intent.entity.type === 'Sommeil') {
+    return [
+      {
+        habitude: "sommeil_1",
+        type: "Sommeil",
+        titre: "Nuit réparatrice",
+        description: "Sommeil profond et continu",
+        heures: "7.5",
+        date: today
+      }
+    ];
+  }
+  
+  return [
+    {
+      habitude: "habitude_1",
+      type: "Habitude",
+      titre: "Habitude santé",
+      description: "Habitude générale de santé",
+      date: today
+    }
+  ];
+}
+
+// ROUTES
+
+// Route principale
+router.post("/executer", async (req, res) => {
   try {
-    const { prompt, context = {} } = req.body;
+    const { prompt } = req.body;
 
     if (!prompt) {
-      return res.status(400).json({
-        success: false,
-        message: "Le prompt est requis pour la compréhension Saif AI"
+      return res.status(400).json({ success: false, message: "Prompt requis" });
+    }
+
+    console.log("🚀 SAIF AI - Prompt:", prompt);
+
+    const intent = saifAI.analyzeSemanticIntent(prompt);
+    const sparqlQuery = saifAI.generateContextualSparql(intent);
+
+    const fusekiConnected = await testFusekiConnection();
+
+    if (!fusekiConnected) {
+      return res.json({
+        success: true,
+        prompt,
+        analyse: {
+          intention: intent.action,
+          entite: intent.entity.type,
+          categorie: intent.entity.category
+        },
+        requeteSparql: sparqlQuery,
+        resultats: getSimulationData(intent),
+        mode: "Simulation",
+        message: "❌ Fuseki non accessible - Mode simulation activé"
       });
     }
 
-    console.log("🧠 SAIF AI - Analyse du prompt:", prompt);
-
-    // Analyse sémantique avancée
-    const intent = saifAI.analyzeSemanticIntent(prompt, context);
-    
-    // Génération de la requête SPARQL contextuelle
-    const sparqlQuery = saifAI.generateContextualSparql(intent);
-
-    console.log("✅ SAIF AI - Intent détecté:", intent.action);
-    console.log("✅ SAIF AI - Requête générée:", sparqlQuery);
-
-    res.json({
-      success: true,
-      prompt,
-      contexte: context,
-      analyse: {
-        intention: intent.action,
-        entite: intent.entity,
-        filtres: intent.filters,
-        relations: intent.relationships,
-        temporel: intent.temporal
-      },
-      requeteSparql: sparqlQuery,
-      historique: saifAI.contextHistory.slice(-5)
-    });
-
-  } catch (error) {
-    console.error("❌ SAIF AI - Erreur compréhension:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// ✅ 2. ROUTE EXÉCUTION INTELLIGENTE - Compréhension + Exécution
-// ✅ 2. ROUTE EXÉCUTION INTELLIGENTE - Compréhension + Exécution
-router.post("/executer", async (req, res) => {
     try {
-      const { prompt, context = {}, executeQuery = true } = req.body;
-  
-      if (!prompt) {
-        return res.status(400).json({
-          success: false,
-          message: "Le prompt est requis pour l'exécution Saif AI"
-        });
-      }
-  
-      console.log("🚀 SAIF AI - Exécution du prompt:", prompt);
-  
-      // Étape 1: Compréhension contextuelle
-      const intent = saifAI.analyzeSemanticIntent(prompt, context);
-      const sparqlQuery = saifAI.generateContextualSparql(intent);
-  
-      let resultatExecution = null;
-  
-      // Étape 2: Exécution si demandée
-      if (executeQuery) {
-        const queryType = intent.action === 'read' || intent.action === 'analyze' ? 'SELECT' : 'UPDATE';
-        
-        try {
-          if (queryType === 'SELECT') {
-            // 🔥 SIMULATION DE DONNÉES POUR LE DÉVELOPPEMENT
-            console.log("🧪 Mode simulation - données de test");
-            resultatExecution = simulateQueryResults(intent, sparqlQuery);
-          } else {
-            // Pour les CREATE, UPDATE, DELETE - on simule le succès
-            console.log("🧪 Mode simulation - opération réussie");
-            resultatExecution = { 
-              message: "✅ Requête exécutée avec succès (mode simulation)",
-              simulated: true,
-              query: sparqlQuery
-            };
-            
-            // Ajouter aux données simulées
-            if (intent.action === 'create') {
-              addToSimulatedData(intent);
-            }
-          }
-        } catch (fusekiError) {
-          console.log("❌ Erreur Fuseki, passage en mode simulation");
-          // Fallback vers la simulation
-          resultatExecution = simulateQueryResults(intent, sparqlQuery);
-        }
-      }
-  
-      console.log("✅ SAIF AI - Exécution terminée");
-  
+      const resultatExecution = await executeSparqlQuery(sparqlQuery);
+      const resultatsFormates = formatResults(resultatExecution);
+
       res.json({
         success: true,
         prompt,
         analyse: {
           intention: intent.action,
-          entite: intent.entity,
-          typeRequete: intent.action === 'read' || intent.action === 'analyze' ? 'SELECT' : 'UPDATE'
+          entite: intent.entity.type,
+          categorie: intent.entity.category
         },
-        requeteGeneree: sparqlQuery,
-        execute: executeQuery,
-        resultat: resultatExecution,
-        suggestions: genererSuggestions(intent),
-        modeSimulation: true // Indique que c'est en mode simulation
+        requeteSparql: sparqlQuery,
+        resultats: resultatsFormates,
+        mode: "Données réelles",
+        message: `✅ ${resultatsFormates.length} résultat(s) trouvé(s)`
       });
-  
-    } catch (error) {
-      console.error("❌ SAIF AI - Erreur exécution:", error);
-      res.status(500).json({
-        success: false,
-        error: error.message,
-        details: error.response?.data
+
+    } catch (queryError) {
+      res.json({
+        success: true,
+        prompt,
+        analyse: {
+          intention: intent.action,
+          entite: intent.entity.type,
+          categorie: intent.entity.category
+        },
+        requeteSparql: sparqlQuery,
+        resultats: getSimulationData(intent),
+        mode: "Simulation",
+        message: "❌ Erreur requête SPARQL - Mode simulation activé"
       });
     }
-  });
-  
-  // 🧪 Fonctions de simulation de données
-// 🧪 Fonctions de simulation de données - STRUCTURE CORRECTE
-function simulateQueryResults(intent, sparqlQuery) {
-    console.log("🎭 Simulation de résultats pour:", intent.entity.type);
-    
-    // STRUCTURE SPARQL STANDARD CORRECTE
-    const baseResults = {
-      head: { 
-        vars: ['habitude', 'type', 'titre', 'description'] // Toujours définir vars
-      },
-      results: { 
-        bindings: [] 
-      }
-    };
-  
-    // Données simulées selon le type d'entité
-    switch (intent.entity.type) {
-      case 'Nutrition':
-        baseResults.head.vars = ['habitude', 'type', 'titre', 'description', 'calories'];
-        baseResults.results.bindings = [
-          {
-            habitude: { value: 'ex:Habitude_Nutrition_1', type: 'uri' },
-            type: { value: 'ontologie:Nutrition', type: 'uri' },
-            titre: { value: 'Petit déjeuner équilibré' },
-            description: { value: 'Omelette, toast, fruits' },
-            calories: { value: '450', type: 'typed-literal', datatype: 'http://www.w3.org/2001/XMLSchema#int' }
-          },
-          {
-            habitude: { value: 'ex:Habitude_Nutrition_2', type: 'uri' },
-            type: { value: 'ontologie:Nutrition', type: 'uri' },
-            titre: { value: 'Salade healthy' },
-            description: { value: 'Déjeuner léger avec poulet' },
-            calories: { value: '320', type: 'typed-literal', datatype: 'http://www.w3.org/2001/XMLSchema#int' }
-          }
-        ];
-        break;
-  
-      case 'Sommeil':
-        baseResults.head.vars = ['habitude', 'type', 'titre', 'description', 'heures'];
-        baseResults.results.bindings = [
-          {
-            habitude: { value: 'ex:Habitude_Sommeil_1', type: 'uri' },
-            type: { value: 'ontologie:Sommeil', type: 'uri' },
-            titre: { value: 'Bonne nuit réparatrice' },
-            description: { value: 'Sommeil profond et continu' },
-            heures: { value: '7.5', type: 'typed-literal', datatype: 'http://www.w3.org/2001/XMLSchema#decimal' }
-          }
-        ];
-        break;
-  
-      case 'ActivitéPhysique':
-        baseResults.head.vars = ['habitude', 'type', 'titre', 'description', 'pas'];
-        baseResults.results.bindings = [
-          {
-            habitude: { value: 'ex:Habitude_Activité_1', type: 'uri' },
-            type: { value: 'ontologie:ActivitéPhysique', type: 'uri' },
-            titre: { value: 'Marche matinale' },
-            description: { value: 'Parcours dans le quartier' },
-            pas: { value: '8500', type: 'typed-literal', datatype: 'http://www.w3.org/2001/XMLSchema#int' }
-          }
-        ];
-        break;
-  
-      default:
-        // Pour les requêtes générales
-        baseResults.head.vars = ['habitude', 'type', 'titre', 'description'];
-        baseResults.results.bindings = [
-          {
-            habitude: { value: 'ex:Habitude_Generale_1', type: 'uri' },
-            type: { value: 'ontologie:Habitude', type: 'uri' },
-            titre: { value: 'Exemple d\'habitude' },
-            description: { value: 'Ceci est une donnée simulée' }
-          }
-        ];
-    }
-  
-    return baseResults;
-  }
-  
-  // Stockage des données simulées (en mémoire)
-  let simulatedData = [];
-  
-  function addToSimulatedData(intent) {
-    const newHabit = {
-      id: `Habitude_${Date.now()}`,
-      type: intent.entity.type,
-      timestamp: new Date().toISOString(),
-      data: intent.filters
-    };
-    simulatedData.push(newHabit);
-    console.log("📝 Donnée simulée ajoutée:", newHabit);
-  }
-
-// ✅ 3. ROUTE APPRENTISSAGE - Amélioration Continue
-router.post("/apprendre", async (req, res) => {
-  try {
-    const { prompt, resultat, satisfaction } = req.body;
-
-    console.log("🎓 SAIF AI - Apprentissage à partir du feedback");
-
-    res.json({
-      success: true,
-      message: "Feedback enregistré pour amélioration du modèle",
-      prompt,
-      satisfaction,
-      ameliorations: [
-        "Enrichissement du vocabulaire",
-        "Optimisation des patterns de détection",
-        "Amélioration de la génération SPARQL"
-      ]
-    });
 
   } catch (error) {
-    console.error("❌ SAIF AI - Erreur apprentissage:", error);
+    console.error("❌ Erreur backend:", error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -677,46 +353,213 @@ router.post("/apprendre", async (req, res) => {
   }
 });
 
-// ✅ 4. ROUTE STATUT - État du Système Saif AI
-router.get("/statut", (req, res) => {
-  res.json({
-    success: true,
-    systeme: "Saif AI SPARQL - Logique de Compréhension Contextuelle",
-    version: "1.0.0",
-    statut: "🟢 Opérationnel",
-    metriques: {
-      analysesEffectuees: saifAI.contextHistory.length,
-      connaissancesMetier: Object.keys(saifAI.domainKnowledge.habitTypes).length,
-      patternsDetectes: Object.keys(saifAI.domainKnowledge.commonPatterns).length,
-      historiqueRecent: saifAI.contextHistory.slice(-3)
-    },
-    capacites: [
-      "Détection d'intention contextuelle",
-      "Extraction d'entités métier", 
-      "Compréhension des relations sémantiques",
-      "Génération SPARQL intelligente",
-      "Apprentissage continu"
-    ]
-  });
+// Route generate (pour le frontend)
+router.post("/generate", async (req, res) => {
+  try {
+    const { prompt, messages } = req.body;
+
+    if (!prompt && !messages) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Prompt ou messages requis" 
+      });
+    }
+
+    console.log("🤖 Génération IA - Données reçues:", { prompt, messages });
+
+    const userMessage = prompt || (messages && messages[messages.length - 1]?.content) || "";
+    const intent = saifAI.analyzeSemanticIntent(userMessage);
+    const sparqlQuery = saifAI.generateContextualSparql(intent);
+
+    console.log("📊 Intention détectée:", intent);
+    console.log("🔍 Requête SPARQL générée:", sparqlQuery);
+
+    const fusekiConnected = await testFusekiConnection();
+    let resultats = [];
+    let mode = "Simulation";
+
+    if (fusekiConnected) {
+      try {
+        const resultatExecution = await executeSparqlQuery(sparqlQuery);
+        resultats = formatResults(resultatExecution);
+        mode = "Données réelles";
+      } catch (error) {
+        console.log("❌ Erreur requête SPARQL, utilisation des données simulées");
+        resultats = getSimulationData(intent);
+      }
+    } else {
+      resultats = getSimulationData(intent);
+    }
+
+    // Générer une réponse naturelle
+    let responseText = "";
+    
+    if (resultats.length > 0) {
+      if (intent.entity.type === 'ActivitéPhysique') {
+        responseText = `🏃 **${resultats.length} activité(s) physique(s) trouvée(s)**\n\n`;
+      } else if (intent.entity.type === 'Nutrition') {
+        responseText = `🍎 **${resultats.length} entrée(s) nutritionnelle(s) trouvée(s)**\n\n`;
+      } else if (intent.entity.type === 'Sommeil') {
+        responseText = `💤 **${resultats.length} entrée(s) de sommeil trouvée(s)**\n\n`;
+      } else {
+        responseText = `📊 **${resultats.length} habitude(s) santé trouvée(s)**\n\n`;
+      }
+    } else {
+      responseText = "🔍 **Aucune donnée trouvée** correspondant à votre recherche.\n\n";
+      responseText += "💡 *Essayez d'ajouter des données ou utilisez des termes plus généraux.*";
+    }
+
+    res.json({
+      success: true,
+      response: responseText,
+      results: resultats,
+      analysis: {
+        intent: intent.action,
+        entity: intent.entity.type,
+        category: intent.entity.category
+      },
+      sparql_query: sparqlQuery,
+      mode: mode,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Erreur génération IA:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      response: "Désolé, une erreur s'est produite lors du traitement de votre demande."
+    });
+  }
 });
 
-// 🧠 Fonction de génération de suggestions
-function genererSuggestions(intent) {
-  const suggestions = [];
+// Route habitudes
+router.get("/habits", async (req, res) => {
+  try {
+    console.log("📊 GET_ALL_HABITUDES - Début de la requête");
+    
+    const fusekiConnected = await testFusekiConnection();
+    
+    if (!fusekiConnected) {
+      console.log("🔄 Habitudes - Mode simulation");
+      const simulatedData = getSimulationData({ entity: { type: 'Habitude' } });
+      return res.json({
+        success: true,
+        habits: simulatedData,
+        count: simulatedData.length,
+        mode: "Simulation",
+        message: "Fuseki non accessible - Données simulées"
+      });
+    }
 
-  if (intent.action === 'read' && !intent.filters) {
-    suggestions.push("💡 Vous pouvez ajouter des filtres comme 'avec plus de 5000 pas' ou 'de cette semaine'");
-  }
-
-  if (intent.entity.type === 'Habitude') {
-    suggestions.push("🎯 Spécifiez un type: 'habitudes sommeil', 'activités nutrition', etc.");
-  }
-
-  if (intent.action === 'create') {
-    suggestions.push("📝 Pensez à inclure: titre, description, et mesures spécifiques");
-  }
-
-  return suggestions;
+    const query = `
+PREFIX ont: <http://www.smarthealth-tracker.com/ontologie#>
+SELECT ?habitude ?type ?titre ?description ?calories ?heures ?pas ?niveau ?date
+WHERE {
+  ?habitude a ?type .
+  FILTER(STRSTARTS(STR(?type), "http://www.smarthealth-tracker.com/ontologie#"))
+  OPTIONAL { ?habitude ont:aTitle ?titre . }
+  OPTIONAL { ?habitude ont:aDescription ?description . }
+  OPTIONAL { ?habitude ont:aCaloriesConsommées ?calories . }
+  OPTIONAL { ?habitude ont:aNombreHeuresSommeil ?heures . }
+  OPTIONAL { ?habitude ont:aPasEffectués ?pas . }
+  OPTIONAL { ?habitude ont:aNiveauStress ?niveau . }
+  OPTIONAL { ?habitude ont:aDateLog ?date . }
 }
+ORDER BY DESC(?date) DESC(?habitude)`;
+
+    console.log("📤 GET_ALL_HABITUDES - Envoi requête SPARQL...");
+    const data = await executeSparqlQuery(query);
+    const habits = formatResults(data);
+
+    console.log(`📊 GET_ALL_HABITUDES - Données récupérées: ${habits.length} habitudes`);
+    
+    res.json({
+      success: true,
+      habits: habits,
+      count: habits.length,
+      mode: "Données réelles",
+      message: `✅ ${habits.length} habitude(s) trouvée(s)`
+    });
+
+  } catch (error) {
+    console.error("❌ Erreur récupération habitudes:", error);
+    const simulatedData = getSimulationData({ entity: { type: 'Habitude' } });
+    res.json({
+      success: true,
+      habits: simulatedData,
+      count: simulatedData.length,
+      mode: "Simulation",
+      message: "Erreur - Données simulées"
+    });
+  }
+});
+
+// Route santé
+router.get("/health", async (req, res) => {
+  try {
+    const fusekiConnected = await testFusekiConnection();
+    
+    res.json({
+      success: true,
+      status: "🟢 En ligne",
+      timestamp: new Date().toISOString(),
+      services: {
+        backend: "🟢 Opérationnel",
+        fuseki: fusekiConnected ? "🟢 Connecté" : "🔴 Déconnecté",
+        dataset: DATASET_NAME,
+        groq: GROQ_API_KEY ? "🟢 Configuré" : "🔴 Non configuré"
+      },
+      endpoints: {
+        generate: "/api/saif-ai/generate",
+        habits: "/api/saif-ai/habits",
+        health: "/api/saif-ai/health",
+        statut: "/api/saif-ai/statut"
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      status: "🔴 Erreur",
+      error: error.message 
+    });
+  }
+});
+
+// Route statut
+router.get("/statut", async (req, res) => {
+  try {
+    const fusekiConnected = await testFusekiConnection();
+    
+    res.json({
+      success: true,
+      systeme: "Saif AI - SmartHealth",
+      backend: "🟢 En ligne",
+      baseDeDonnees: {
+        statut: fusekiConnected ? "🟢 Connecté" : "🔴 Déconnecté",
+        nom: DATASET_NAME,
+        url: FUSEKI_ENDPOINT
+      },
+      message: fusekiConnected 
+        ? "✅ Système opérationnel - Prêt à recevoir des requêtes"
+        : "❌ Fuseki inaccessible - Mode simulation activé"
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Route test
+router.get("/test", (req, res) => {
+  res.json({
+    success: true,
+    message: "Backend Saif AI fonctionnel",
+    timestamp: new Date().toISOString(),
+    version: "2.0.0"
+  });
+});
 
 module.exports = router;
