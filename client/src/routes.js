@@ -27,6 +27,7 @@ import Habitudes from "components/Habitude/HabitudeList.jsx";
 import EvenementForm from "views/examples/Evenement.jsx"; 
 import ArticleForm from "views/examples/Article.jsx"; 
 import Aichatsaif from "components/Habitude//SaifAIChat.jsx"
+import HabitudeLogs from "components/HabitudeLogs/HabitudeLogList";
 
 
 
@@ -55,11 +56,19 @@ var routes = [
 
   {
     path: "/habitudes",
-    name: "Habitudes",
-    icon: "ni ni-time-alarm text-orange",
-    component: Habitudes,
+    name: "Habitude",
+    icon: "ni ni-planet text-blue",
+    component: <Habitudes />,
     layout: "/admin",
   },
+  {
+    path: "/habitude-logs",
+    name: "Habitude-Logs",
+    icon: "ni ni-bullet-list-67 text-red",
+    component: <HabitudeLogs />,
+    layout: "/admin",
+  },
+  
     {
     path: "/aichat",
     name: "Aichatsaif",
