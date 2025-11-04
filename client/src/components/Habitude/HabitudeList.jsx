@@ -3,7 +3,7 @@ import { getAllHabitudes, deleteHabitude } from "../../api/habitudeApi";
 import HabitudeForm from "./HabitudeForm";
 import { useAuth } from "../../context/AuthContext";
 import { Sidebar } from "../Sidebar/Sidebar";
-
+    
 const HabitudeList = () => {
   const [habitudes, setHabitudes] = useState([]);
   const [selected, setSelected] = useState(null);
