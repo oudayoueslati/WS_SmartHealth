@@ -22,6 +22,9 @@ import Login from "views/examples/Login.jsx";
 import Tables from "views/examples/Tables.jsx";
 import MesureForm from "views/examples/Mesure.jsx";
 import ScoreSanteForm from "views/examples/ScoreSante.jsx";
+import EtatSante from "views/examples/EtatSante";
+import Objectif from "views/examples/Objectif";
+
 
 var routes = [
   {
@@ -36,6 +39,20 @@ var routes = [
     name: "Mesure",
     icon: "ni ni-planet text-blue",
     component: <MesureForm />,
+    layout: "/admin",
+  },
+   {
+    path: "/etat-sante",
+    name: "État Santé",
+    icon: "ni ni-favourite-28 text-red",
+    component: <EtatSante />,
+    layout: "/admin",
+  },
+   {
+    path: "/objectif",
+    name: "Objectif",
+    icon: "ni ni-check-bold text-success",
+    component: <Objectif />,
     layout: "/admin",
   },
   {
@@ -73,5 +90,6 @@ var routes = [
     component: <Register />,
     layout: "/auth",
   },
+  
 ];
 export default routes;
