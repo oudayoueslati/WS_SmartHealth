@@ -1,0 +1,57 @@
+# === Node & React ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+pnpm-lock.yaml
+
+# React build & cache
+client/build/
+client/.cache/
+client/node_modules/
+client/node_modules/.cache/
+client/node_modules/.vite/
+client/node_modules/.parcel-cache/
+client/.env
+client/.eslintcache
+client/.parcel-cache/
+client/.vite/
+client/dist/
+client/.turbo/
+
+# === Server (Node / Python) ===
+server/node_modules/
+server/__pycache__/
+server/*.log
+server/.env
+server/.venv/
+server/venv/
+server/backend-ai/__pycache__/
+server/ObjectifSante-ai/__pycache__/
+server/AIObjectif/__pycache__/
+server/backend-ai/.env
+server/ObjectifSante-ai/.env
+
+# === VS Code ===
+.vscode/
+*.code-workspace
+
+# === Python ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.mypy_cache/
+.pytest_cache/
+.idea/
+
+# === OS files ===
+.DS_Store
+Thumbs.db
+
+# === Git / misc ===
+.gitignore
+*.bak
+*.swp
+*.tmp
