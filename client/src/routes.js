@@ -1,34 +1,19 @@
-/*!
 
-=========================================================
-* Argon Dashboard React - v1.2.4
-=========================================================
-
-* Product Page: https://www.creative-tim.com/product/argon-dashboard-react
-* Copyright 2024 Creative Tim (https://www.creative-tim.com)
-* Licensed under MIT (https://github.com/creativetimofficial/argon-dashboard-react/blob/master/LICENSE.md)
-
-* Coded by Creative Tim
-
-=========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-*/
 import Index from "views/Index.jsx";
 import Profile from "views/examples/Profile.jsx";
-import Maps from "views/examples/Maps.jsx";
 import Register from "views/examples/Register.jsx";
 import Login from "views/examples/Login.jsx";
 import Tables from "views/examples/Tables.jsx";
-import Icons from "views/examples/Icons.jsx";
 import HealthPrograms from "views/HealthPrograms.jsx";
 import Habitudes from "components/Habitude/HabitudeList.jsx";
 import EvenementForm from "views/examples/Evenement.jsx"; 
 import ArticleForm from "views/examples/Article.jsx"; 
 import Aichatsaif from "components/Habitude//SaifAIChat.jsx"
 import HabitudeLogs from "components/HabitudeLogs/HabitudeLogList";
-
+import MesureForm from "views/examples/Mesure.jsx";
+import ScoreSanteForm from "views/examples/ScoreSante.jsx";
+import EtatSante from "views/examples/EtatSante";
+import Objectif from "views/examples/Objectif";
 
 
 var routes = [
@@ -83,18 +68,33 @@ var routes = [
     component: <HealthPrograms />,
     layout: "/admin",
   },
-  {
-    path: "/icons",
-    name: "Icons",
+
+ {
+    path: "/MesureForm",
+    name: "Mesure",
     icon: "ni ni-planet text-blue",
-    component: <Icons />,
+    component: <MesureForm />,
+    layout: "/admin",
+  },
+   {
+    path: "/etat-sante",
+    name: "État Santé",
+    icon: "ni ni-favourite-28 text-red",
+    component: <EtatSante />,
+    layout: "/admin",
+  },
+   {
+    path: "/objectif",
+    name: "Objectif",
+    icon: "ni ni-check-bold text-success",
+    component: <Objectif />,
     layout: "/admin",
   },
   {
-    path: "/maps",
-    name: "Maps",
+    path: "/ScoreSanteForm",
+    name: "ScoreSante",
     icon: "ni ni-pin-3 text-orange",
-    component: <Maps />,
+    component: <ScoreSanteForm />,
     layout: "/admin",
   },
   {
